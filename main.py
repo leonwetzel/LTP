@@ -1,3 +1,16 @@
+__author__ = "Jantina Schakel, Marieke Weultjes, Leon Wetzel," \
+             " and Dion Theodoridis"
+__copyright__ = "Copyright 2021, Jantina Schakel, Marieke Weultjes," \
+                " Leon Wetzel, and Dion Theodoridis"
+__credits__ = ["Jantina Schakel", "Marieke Weultjes", "Leon Wetzel",
+                    "Dion Theodoridis"]
+__license__ = "MIT"
+__version__ = "1.0.1"
+__maintainer__ = "Leon Wetzel"
+__email__ = "l.f.a.wetzel@student.rug.nl"
+__status__ = "Development"
+
+
 from transformers import BertTokenizer, BertModel
 import torch
 
