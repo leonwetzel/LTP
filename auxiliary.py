@@ -10,7 +10,7 @@ __maintainer__ = "Leon Wetzel"
 __email__ = "l.f.a.wetzel@student.rug.nl"
 __status__ = "Development"
 
-
+import numpy as np
 import pandas as pd
 
 from torch.utils.data import Dataset, DataLoader
@@ -21,6 +21,9 @@ class SentenceDataset(Dataset):
         super().__init__()
 
         self.corpus_frame = pd.read_csv(data_file)
+
+        self.data = np.array()
+        self.labels = np.array()
 
     def __len__(self):
         return len(self.corpus_frame)
