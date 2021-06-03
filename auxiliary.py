@@ -13,7 +13,7 @@ __status__ = "Development"
 import numpy as np
 import pandas as pd
 
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 
 class SentenceDataset(Dataset):
