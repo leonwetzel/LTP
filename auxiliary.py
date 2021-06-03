@@ -21,7 +21,9 @@ class SentenceDataset(Dataset):
         super().__init__()
 
         self.corpus_frame = pd.read_csv(data_file)
+        # TODO: juiste gegevens inladen
 
+        # TODO: onderscheid maken in data en labels
         self.data = np.array()
         self.labels = np.array()
 
@@ -29,4 +31,5 @@ class SentenceDataset(Dataset):
         return len(self.corpus_frame)
 
     def __getitem__(self, item):
+        # TODO: ervoor zorgen dat een Tensor-object geretourneerd wordt
         return item
