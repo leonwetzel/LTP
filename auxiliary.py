@@ -32,4 +32,5 @@ class SentenceDataset(Dataset):
 
     def __getitem__(self, item):
         # TODO: ervoor zorgen dat een Tensor-object geretourneerd wordt
+        # voorbeeld: torch.Tensor(self.data[index]).long(), torch.Tensor(self.labels[index]).long()
         return item
