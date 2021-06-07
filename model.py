@@ -10,6 +10,8 @@ __maintainer__ = "Leon Wetzel"
 __email__ = "l.f.a.wetzel@student.rug.nl"
 __status__ = "Development"
 
+from sklearn.model_selection import train_test_split
+
 """
 USEFUL WORK:
 - BERT fine-tune on fake news detection: https://colab.research.google.com/drive/1P4Hq0btDUDOTGkCHGzZbAx1lb0bTzMMa?usp=sharing
@@ -28,7 +30,7 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 
-from auxiliary import SentenceDataset, padding_collate_fn
+from auxiliary import SentenceDataset, padding_collate_fn, DATA_PATH
 
 
 parser = argparse.ArgumentParser(description="POS tagging")
@@ -157,21 +159,24 @@ if __name__ == "__main__":
     model = BertForSequenceClassification.from_pretrained(pretrained)
     model.to(device)
 
-    # TODO: replace old data loading by functionality in auxiliary.py
-    # TODO: check if collate function actually makes sense
-    train_dataset = SentenceDataset("data/train.en", tokenizer)
-    train_loader = DataLoader(train_dataset,
-                              shuffle=True,
-                              collate_fn=padding_collate_fn,
-                              batch_size=args.batch_size)
-    valid_dataset = SentenceDataset("data/valid.en", tokenizer)
-    valid_loader = DataLoader(valid_dataset,
-                              collate_fn=padding_collate_fn,
-                            batch_size=args.batch_size)
-    test_dataset = SentenceDataset("data/test.en", tokenizer)
-    test_loader = DataLoader(test_dataset,
-                             collate_fn=padding_collate_fn,
-                             batch_size=args.batch_size)
+    fr_data = SentenceDataset(DATA_PATH, 'France', tokenizer)
+    gr_data = SentenceDataset(DATA_PATH, 'Germany', tokenizer)
+
+    # load data per language
+    fr_train, fr_rest = train_test_split(fr_data, test_size=0.2)
+    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.5)
+    gr_train, gr_rest = train_test_split(gr_data, test_size=0.2)
+    gr_dev, gr_test = train_test_split(gr_rest, test_size=0.5)
+
+    # make French splits
+    fr_train_loader = DataLoader(fr_train, shuffle=False, batch_size=64)
+    fr_dev_loader = DataLoader(fr_dev, shuffle=False, batch_size=64)
+    fr_test_loader = DataLoader(fr_test, shuffle=False, batch_size=64)
+
+    # make German splits
+    gr_train_loader = DataLoader(gr_train, shuffle=False, batch_size=64)
+    gr_dev_loader = DataLoader(gr_dev, shuffle=False, batch_size=64)
+    gr_test_loader = DataLoader(gr_test, shuffle=False, batch_size=64)
 
     config = BertConfig.from_pretrained(pretrained)
     # config.num_labels = len(IDX2POS)  # TODO: specify amount of possible labels
@@ -187,13 +192,13 @@ if __name__ == "__main__":
     if args.reload_model:
         model.load_state_dict(torch.load(args.reload_model))
 
-    evaluate(model, valid_loader)
-    train(model, train_loader, valid_loader, test_loader, args.epochs)
+    evaluate(model, gr_dev_loader)
+    train(model, gr_train_loader, gr_dev_loader, gr_test_loader, args.epochs)
 
     # Write output to file
     if args.output_file:
         print("Writing output to file...")
-        write_to_file(model, test_loader, args.output_file)
+        write_to_file(model, gr_dev_loader, args.output_file)
 
     if args.save_model:
         torch.save(model.state_dict(), args.save_model)
