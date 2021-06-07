@@ -154,7 +154,6 @@ if __name__ == "__main__":
     tokenizer = BertTokenizer.from_pretrained(pretrained)
     tokenizer.do_basic_tokenize = False  # TODO: check if this is really needed
 
-    tokenizer = BertTokenizer.from_pretrained(pretrained)
     model = BertForSequenceClassification.from_pretrained(pretrained)
     model.to(device)
 
