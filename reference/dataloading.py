@@ -22,7 +22,6 @@ class POSDataset(Dataset):
 
         data = []
         labels = []
-        
 
         for i, line in enumerate(data_file):
             tokens = tokenizer.tokenize(line)
@@ -57,7 +56,6 @@ class POSDataset(Dataset):
 
         self.data = np.array(data)
         self.labels = np.array(labels)
-
 
     def __getitem__(self, index):
         return torch.Tensor(self.data[index]).long(), torch.Tensor(self.labels[index]).long()
