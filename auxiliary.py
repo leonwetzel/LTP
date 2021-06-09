@@ -62,8 +62,6 @@ class SentenceDataset(Dataset):
                                   truncation=True) for i in df['text']
         ]
 
-        # data = [self.tokenizer.tokenize(i) for i in df['text']]
-        # indexes = [self.tokenizer.encode(i) for i in df['text']]  # moet dit dan data zijn?
         labels = [i for i in df['Category']]
 
         # transform labels from dataset to right format

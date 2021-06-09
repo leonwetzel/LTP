@@ -73,7 +73,7 @@ def train(model, train_loader, valid_loader, test_loader, epochs=5):
             # i. zero gradients
             optimizer.zero_grad()
             # ii. do forward pass
-            y_pred = model(data, labels=labels)  # TODO: get labels somewhere
+            y_pred = model(data, labels=labels)  # 64 (rows in batch) * 7 (classes) = 448 ??? [1 0 0 0 0 0 0]
             # iii. get loss
             loss = y_pred.loss
             # add loss to total_loss
@@ -100,7 +100,6 @@ def train(model, train_loader, valid_loader, test_loader, epochs=5):
 
 
 def evaluate(model, loader):
-    # TODO: look for good/better ways to evaluate particular task
     model.eval()
     with torch.no_grad():
         correct = 0.0
@@ -120,7 +119,7 @@ def evaluate(model, loader):
 
             total += len(data)
 
-    # print(correct, total)
+    print(correct / total)
     model.train()
     return correct / total
 
@@ -160,10 +159,10 @@ if __name__ == "__main__":
     # - uncased variant: https://huggingface.co/bert-base-multilingual-uncased
     pretrained = 'bert-base-multilingual-cased'
     tokenizer = BertTokenizer.from_pretrained(pretrained)
-    tokenizer.do_basic_tokenize = True
+    tokenizer.do_basic_tokenize = False
 
     model = BertForSequenceClassification.from_pretrained(pretrained)
-    model.to(device)
+    model.labels = IDX2LABEL
 
     fr_data = SentenceDataset(DATA_PATH, 'France', tokenizer)
     gr_data = SentenceDataset(DATA_PATH, 'Germany', tokenizer)
@@ -183,16 +182,6 @@ if __name__ == "__main__":
     gr_train_loader = DataLoader(gr_train, shuffle=False, batch_size=64)
     gr_dev_loader = DataLoader(gr_dev, shuffle=False, batch_size=64)
     gr_test_loader = DataLoader(gr_test, shuffle=False, batch_size=64)
-
-    config = BertConfig.from_pretrained(pretrained)
-    config.num_labels = len(IDX2LABEL)
-    # TODO: check if num_labels also applies to multi-label rows
-    config.num_hidden_layers = args.num_hidden_layers
-    config.num_attention_heads = args.num_attn_heads
-    config.output_attentions = True
-
-    # Load an untrained model
-    model = BertForSequenceClassification(config)
 
     # Load model weights from a file
     if args.reload_model:
