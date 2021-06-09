@@ -10,8 +10,6 @@ __maintainer__ = "Leon Wetzel"
 __email__ = "l.f.a.wetzel@student.rug.nl"
 __status__ = "Development"
 
-from sklearn.model_selection import train_test_split
-
 """
 USEFUL WORK:
 - BERT fine-tune on fake news detection: https://colab.research.google.com/drive/1P4Hq0btDUDOTGkCHGzZbAx1lb0bTzMMa?usp=sharing
@@ -29,8 +27,10 @@ import torch
 from torch.utils.data import DataLoader
 
 import numpy as np
+from sklearn.model_selection import train_test_split
 
-from auxiliary import SentenceDataset, padding_collate_fn, DATA_PATH
+from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, IGNORE_IDX, LABEL2IDX, tensor_desc
+
 
 
 parser = argparse.ArgumentParser(description="POS tagging")
@@ -67,13 +67,13 @@ def train(model, train_loader, valid_loader, test_loader, epochs=5):
         total_loss = 0.0
         total_sentences = 0.0
         for index, batch in enumerate(train_loader):
-            data, _ = batch
+            data, labels = batch
             total_sentences += data.numel()
 
             # i. zero gradients
             optimizer.zero_grad()
             # ii. do forward pass
-            y_pred = model(data, labels=[])  # TODO: get labels somewhere
+            y_pred = model(data, labels=labels)  # TODO: get labels somewhere
             # iii. get loss
             loss = y_pred.loss
             # add loss to total_loss
@@ -106,17 +106,23 @@ def evaluate(model, loader):
         correct = 0.0
         total = 0.0
         for batch in loader:
+            # batch size = 64
             data, labels = batch
-            out = model(input_ids=data)
-            preds = out.logits.argmax(dim=-1)
+            output = model(input_ids=data)
+            predictions = torch.argmax(output.logits, dim=-1)
 
-            mask = labels != -100  # TODO: change or remove mask
-            correct += (preds[mask] == labels[mask]).sum().item()
-            total += labels[mask].numel()
+            for i, pred in enumerate(predictions):
+                result = torch.zeros(len(labels[i]), dtype=torch.int64)
+                result[pred] = 1
 
-    print(correct, total)
+                if torch.equal(result, labels[i]):
+                    correct += 1
+
+            total += len(data)
+
+    # print(correct, total)
     model.train()
-    return correct/total
+    return correct / total
 
 
 def write_to_file(model, loader, output_file):
@@ -154,7 +160,7 @@ if __name__ == "__main__":
     # - uncased variant: https://huggingface.co/bert-base-multilingual-uncased
     pretrained = 'bert-base-multilingual-cased'
     tokenizer = BertTokenizer.from_pretrained(pretrained)
-    tokenizer.do_basic_tokenize = False  # TODO: check if this is really needed
+    tokenizer.do_basic_tokenize = True
 
     model = BertForSequenceClassification.from_pretrained(pretrained)
     model.to(device)
@@ -179,7 +185,7 @@ if __name__ == "__main__":
     gr_test_loader = DataLoader(gr_test, shuffle=False, batch_size=64)
 
     config = BertConfig.from_pretrained(pretrained)
-    # config.num_labels = len(IDX2POS)  # TODO: specify amount of possible labels
+    config.num_labels = len(IDX2LABEL)
     # TODO: check if num_labels also applies to multi-label rows
     config.num_hidden_layers = args.num_hidden_layers
     config.num_attention_heads = args.num_attn_heads

@@ -63,6 +63,7 @@ class POSDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
+
 def padding_collate_fn(batch):
     """ Pads data with zeros to size of longest sentence in batch. """
     data, labels = zip(*batch)
