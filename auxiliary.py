@@ -57,8 +57,6 @@ class SentenceDataset(Dataset):
         else:
             max_length = largest_sample
 
-        # print(df['text'][:10])
-
         data = [
             self.tokenizer.encode(i, padding='max_length', max_length=max_length,
                                   truncation=True) for i in df['text']
