@@ -133,3 +133,6 @@ data
 
 # Data
 PSP_data.csv
+
+# For Apple Mac users
+.DS_Store
