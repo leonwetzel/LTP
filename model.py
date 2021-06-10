@@ -22,14 +22,14 @@ USEFUL WORK:
 import time
 import argparse
 
-from transformers import BertTokenizer, BertForSequenceClassification, BertConfig
+from transformers import BertTokenizer, BertForSequenceClassification
 import torch
 from torch.utils.data import DataLoader
 
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, IGNORE_IDX, LABEL2IDX, tensor_desc
+from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc
 
 
 
@@ -40,10 +40,10 @@ parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--epochs", type=int, default=1)
 parser.add_argument("--num_hidden_layers", type=int, default=1)
 parser.add_argument("--num_attn_heads", type=int, default=1)
-parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output_s3284174.txt')
+parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output.txt')
 
 
-def train(model, train_loader, valid_loader, test_loader, epochs=5):
+def train(model, train_loader, valid_loader, test_loader, epochs=3):
     """
     Train the model, given various data splits and an epoch count.
 
@@ -60,7 +60,7 @@ def train(model, train_loader, valid_loader, test_loader, epochs=5):
     None
 
     """
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
 
     for epoch in range(epochs):
         start_time = time.time()
@@ -73,7 +73,11 @@ def train(model, train_loader, valid_loader, test_loader, epochs=5):
             # i. zero gradients
             optimizer.zero_grad()
             # ii. do forward pass
-            y_pred = model(data, labels=labels)  # 64 (rows in batch) * 7 (classes) = 448 ??? [1 0 0 0 0 0 0]
+            tensor_desc(data)
+            print()
+            tensor_desc(labels.unsqueeze(0))
+
+            y_pred = model(input_ids=data, labels=labels.unsqueeze(0))  # , labels=labels)
             # iii. get loss
             loss = y_pred.loss
             # add loss to total_loss
@@ -100,6 +104,18 @@ def train(model, train_loader, valid_loader, test_loader, epochs=5):
 
 
 def evaluate(model, loader):
+    """
+    Evaluate model, using data provided by a DataLoader object.
+
+    Parameters
+    ----------
+    model
+    loader
+
+    Returns
+    -------
+
+    """
     model.eval()
     with torch.no_grad():
         correct = 0.0
@@ -119,7 +135,7 @@ def evaluate(model, loader):
 
             total += len(data)
 
-    print(correct / total)
+    print(f"Accuracy: {correct / total}")
     model.train()
     return correct / total
 
@@ -159,11 +175,12 @@ if __name__ == "__main__":
     # - uncased variant: https://huggingface.co/bert-base-multilingual-uncased
     pretrained = 'bert-base-multilingual-cased'
     tokenizer = BertTokenizer.from_pretrained(pretrained)
-    tokenizer.do_basic_tokenize = False
+    tokenizer.do_basic_tokenize = False  # TODO: change if needed
 
     model = BertForSequenceClassification.from_pretrained(pretrained)
-    model.labels = IDX2LABEL
+    model.num_labels = len(IDX2LABEL)
 
+    # TODO: add more countries for comparisons
     fr_data = SentenceDataset(DATA_PATH, 'France', tokenizer)
     gr_data = SentenceDataset(DATA_PATH, 'Germany', tokenizer)
 

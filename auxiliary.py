@@ -19,11 +19,8 @@ from transformers import BertTokenizer
 
 DATA_PATH = "data/PSP_data.csv"
 
-IDX2LABEL = ['None', 'Anti-immigrant', 'Anti-muslim', 'Anti-semitic', 'Sexist', 'Homophobic', 'Other']
+IDX2LABEL = ['Non-offensive', 'Offensive']
 LABEL2IDX = {label: i for i, label in enumerate(IDX2LABEL)}
-
-IGNORE_IDX = -100
-VALID_IDX = 100
 
 
 class SentenceDataset(Dataset):
@@ -42,6 +39,9 @@ class SentenceDataset(Dataset):
         df = df[df['text'].notnull()]
         df = df[df['Category'].notnull()]
 
+        df.loc[df['Category'] != "None", "Category"] = 'Offensive'
+        df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
+
         # get data and labels
         data, labels = self._extract(df)
 
@@ -56,6 +56,8 @@ class SentenceDataset(Dataset):
             max_length = 512
         else:
             max_length = largest_sample
+
+        # print(df['text'][:10])
 
         data = [
             self.tokenizer.encode(i, padding='max_length', max_length=max_length,
