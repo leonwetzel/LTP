@@ -24,6 +24,7 @@ import argparse
 
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -61,6 +62,9 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
 
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
+    criterion = nn.BCELoss(reduction='mean')
+
+    print("Commencing training...")
 
     for epoch in range(epochs):
         start_time = time.time()
@@ -73,13 +77,13 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
             # i. zero gradients
             optimizer.zero_grad()
             # ii. do forward pass
-            tensor_desc(data)
-            print()
-            tensor_desc(labels.unsqueeze(0))
+            # tensor_desc(data)
+            # print()
+            # tensor_desc(labels)
 
-            y_pred = model(input_ids=data, labels=labels.unsqueeze(0))  # , labels=labels)
+            y_pred = model(input_ids=data)
             # iii. get loss
-            loss = y_pred.loss
+            loss = criterion(y_pred, labels)
             # add loss to total_loss
             total_loss += loss.item()
             # iv. do backward pass
