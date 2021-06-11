@@ -36,6 +36,10 @@ class SentenceDataset(Dataset):
         df = df[df['text'].notnull()]
         df = df[df['Category'].notnull()]
 
+        # convert multi class labels to binairy labels
+        df.loc[df['Category'] != "None", "Category"] = 'Offensive'
+        df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
+
         # get data and labels
         data, labels = self._extract(df)
 
