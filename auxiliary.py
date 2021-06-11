@@ -23,6 +23,7 @@ DATA_PATH = "data/PSP_data.csv"
 IDX2LABEL = ['Non-offensive', 'Offensive']
 LABEL2IDX = {label: i for i, label in enumerate(IDX2LABEL)}
 
+
 def preprocessing_dataset(data_file):
     # load dataset
     df = pd.read_csv(data_file, sep=',', quotechar='"')
@@ -36,6 +37,7 @@ def preprocessing_dataset(data_file):
     df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
 
     return df
+
 
 class SentenceDataset(Dataset):
     def __init__(self, data_frame, tokenizer):
@@ -59,7 +61,7 @@ class SentenceDataset(Dataset):
         else:
             max_length = largest_sample
 
-        print(f"({self.country}) Encoding data...")
+        print(f"Encoding data...")
         data = [
             self.tokenizer.encode(i, padding='max_length', max_length=max_length,
                                   truncation=True) for i in df['text']
@@ -102,6 +104,7 @@ def convert_to_one_hot(Y, label_size):
         out.append(one_hot)
     return np.array(out)
 
+
 def baseline_data(dataframe, tokenizer):
     largest_sample = max([len(tokenizer.tokenize(i)) for i in dataframe['text']])
 
@@ -112,7 +115,7 @@ def baseline_data(dataframe, tokenizer):
 
     data = [
         tokenizer.encode(i, padding='max_length', max_length=max_length,
-                              truncation=True) for i in dataframe['text']
+                         truncation=True) for i in dataframe['text']
     ]
 
     labels = []

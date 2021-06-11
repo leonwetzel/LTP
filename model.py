@@ -24,7 +24,6 @@ import argparse
 
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
@@ -35,8 +34,6 @@ from sklearn.metrics import f1_score, accuracy_score
 from sklearn.svm import SVC, LinearSVC
 
 from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset
-
-
 
 parser = argparse.ArgumentParser(description="POS tagging")
 parser.add_argument("--reload_model", type=str, help="Path of model to reload")
@@ -83,11 +80,6 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
             optimizer.zero_grad()
             # ii. do forward pass
             y_pred = model(input_ids=data)
-            # tensor_desc(y_pred.logits)
-            out = torch.argmax(y_pred.logits, dim=-1)
-            # tensor_desc(out)
-            # target = torch.argmax(labels, dim=-1)
-            # tensor_desc(labels)
             # iii. get loss
             loss = F.binary_cross_entropy_with_logits(y_pred.logits, labels.float())
             # add loss to total_loss
@@ -152,6 +144,7 @@ def evaluate(model, loader):
 
 
 def write_to_file(model, loader, output_file):
+    # TODO fix
     model.eval()
     with torch.no_grad():
         outputs = []
@@ -223,7 +216,6 @@ if __name__ == "__main__":
     print(baseline_pred)
     print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
     print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
-
 
     # load the datasets
     train_loader = DataLoader(train, shuffle=False, batch_size=64)
