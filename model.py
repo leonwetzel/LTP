@@ -25,6 +25,7 @@ import argparse
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -62,7 +63,7 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
 
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
-    criterion = nn.BCELoss(reduction='mean')
+    # criterion = nn.BCELoss(reduction='mean')  # TODO: change/upgrade if needed
 
     print("Commencing training...")
 
@@ -71,19 +72,21 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
         total_loss = 0.0
         total_sentences = 0.0
         for index, batch in enumerate(train_loader):
+            print(f"Processing batch {index} of epoch {epoch}...")
             data, labels = batch
             total_sentences += data.numel()
 
             # i. zero gradients
             optimizer.zero_grad()
             # ii. do forward pass
-            # tensor_desc(data)
-            # print()
-            # tensor_desc(labels)
-
             y_pred = model(input_ids=data)
+            # tensor_desc(y_pred.logits)
+            out = torch.argmax(y_pred.logits, dim=-1)
+            # tensor_desc(out)
+            # target = torch.argmax(labels, dim=-1)
+            # tensor_desc(labels)
             # iii. get loss
-            loss = criterion(y_pred, labels)
+            loss = F.binary_cross_entropy_with_logits(y_pred.logits, labels.float())
             # add loss to total_loss
             total_loss += loss.item()
             # iv. do backward pass
@@ -94,7 +97,7 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
             if index % 5 == 0 and index > 0:
                 avg_loss = total_loss / 5.0
                 sentences_per_sec = total_sentences / (time.time() - start_time)
-                print("[Epoch %d, Iter %d] loss: %.4f, toks/sec: %d" % \
+                print("[Epoch %d, Iter %d] loss: %.4f, sentences/sec: %d" % \
                     (epoch, index, avg_loss, sentences_per_sec))
                 start_time = time.time()
                 total_loss = 0.0
@@ -120,6 +123,7 @@ def evaluate(model, loader):
     -------
 
     """
+    print("Evaluating...")
     model.eval()
     with torch.no_grad():
         correct = 0.0
@@ -172,7 +176,8 @@ if __name__ == "__main__":
     np.random.seed(0)
     args = parser.parse_args()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Available devices: {torch.cuda.device_count()} ({torch.cuda.get_device_name(0)})")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print('Using {} device'.format(device))
 
     # For more info, see https://huggingface.co/bert-base-multilingual-cased
@@ -188,6 +193,8 @@ if __name__ == "__main__":
     fr_data = SentenceDataset(DATA_PATH, 'France', tokenizer)
     gr_data = SentenceDataset(DATA_PATH, 'Germany', tokenizer)
 
+    print("Splitting data...")
+
     # load data per language
     fr_train, fr_rest = train_test_split(fr_data, test_size=0.2)
     fr_dev, fr_test = train_test_split(fr_rest, test_size=0.5)
@@ -195,11 +202,13 @@ if __name__ == "__main__":
     gr_dev, gr_test = train_test_split(gr_rest, test_size=0.5)
 
     # make French splits
+    print(f"(France) Creating DataLoaders...")
     fr_train_loader = DataLoader(fr_train, shuffle=False, batch_size=64)
     fr_dev_loader = DataLoader(fr_dev, shuffle=False, batch_size=64)
     fr_test_loader = DataLoader(fr_test, shuffle=False, batch_size=64)
 
     # make German splits
+    print(f"(Germany) Creating DataLoaders...")
     gr_train_loader = DataLoader(gr_train, shuffle=False, batch_size=64)
     gr_dev_loader = DataLoader(gr_dev, shuffle=False, batch_size=64)
     gr_test_loader = DataLoader(gr_test, shuffle=False, batch_size=64)
@@ -208,7 +217,7 @@ if __name__ == "__main__":
     if args.reload_model:
         model.load_state_dict(torch.load(args.reload_model))
 
-    evaluate(model, gr_dev_loader)
+    # evaluate(model, gr_dev_loader)  # TODO: add me back after fixing issues
     train(model, gr_train_loader, gr_dev_loader, gr_test_loader, args.epochs)
 
     # Write output to file

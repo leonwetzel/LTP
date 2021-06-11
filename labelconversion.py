@@ -10,4 +10,4 @@ df = pd.read_csv(data_file, sep=',', quotechar='"')
 df.loc[df['Category'] != "None", "Category"] = 'Offensive'
 df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
 
-df.to_csv("data/PSP_data.csv")
+df.to_csv("data/PSP_data.csv", index=False)

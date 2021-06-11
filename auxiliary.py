@@ -13,9 +13,7 @@ __status__ = "Development"
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset, DataLoader
-from transformers import BertTokenizer
+from torch.utils.data import Dataset
 
 DATA_PATH = "data/PSP_data.csv"
 
@@ -26,8 +24,10 @@ LABEL2IDX = {label: i for i, label in enumerate(IDX2LABEL)}
 class SentenceDataset(Dataset):
     def __init__(self, data_file, country, tokenizer):
         super().__init__()
+        print(f"Loading data for {country}...")
         # load tokenizer
         self.tokenizer = tokenizer
+        self.country = country
 
         # load dataset
         df = pd.read_csv(data_file, sep=',', quotechar='"')
@@ -54,6 +54,7 @@ class SentenceDataset(Dataset):
         else:
             max_length = largest_sample
 
+        print(f"({self.country}) Encoding data...")
         data = [
             self.tokenizer.encode(i, padding='max_length', max_length=max_length,
                                   truncation=True) for i in df['text']
@@ -62,6 +63,7 @@ class SentenceDataset(Dataset):
         labels = [i for i in df['Category']]
 
         # transform labels from dataset to right format
+        print(f"({self.country}) Converting labels...")
         one_hot_multi_label = convert_to_one_hot(labels, len(IDX2LABEL))
 
         return data, one_hot_multi_label
@@ -83,7 +85,7 @@ def tensor_desc(x):
         print("Size:   {}".format(x.size()))
     except AttributeError:
         print("Size:   {}".format(len(x)))
-    print("Values: {}".format(x.data[0]))
+    print("Values: {}".format(x.data))
 
 
 def convert_to_one_hot(Y, label_size):
