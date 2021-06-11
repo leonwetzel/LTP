@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer
 
@@ -22,26 +23,28 @@ DATA_PATH = "data/PSP_data.csv"
 IDX2LABEL = ['Non-offensive', 'Offensive']
 LABEL2IDX = {label: i for i, label in enumerate(IDX2LABEL)}
 
+def preprocessing_dataset(data_file):
+    # load dataset
+    df = pd.read_csv(data_file, sep=',', quotechar='"')
+
+    # clean dataframe from missing values
+    df = df[df['text'].notnull()]
+    df = df[df['Category'].notnull()]
+
+    # convert multi class labels to binairy labels
+    df.loc[df['Category'] != "None", "Category"] = 'Offensive'
+    df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
+
+    return df
 
 class SentenceDataset(Dataset):
-    def __init__(self, data_file, tokenizer):
+    def __init__(self, data_frame, tokenizer):
         super().__init__()
         # load tokenizer
         self.tokenizer = tokenizer
 
-        # load dataset
-        df = pd.read_csv(data_file, sep=',', quotechar='"')
-
-        # clean dataframe from missing values
-        df = df[df['text'].notnull()]
-        df = df[df['Category'].notnull()]
-
-        # convert multi class labels to binairy labels
-        df.loc[df['Category'] != "None", "Category"] = 'Offensive'
-        df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
-
         # get data and labels
-        data, labels = self._extract(df)
+        data, labels = self._extract(data_frame)
 
         self.data = np.array(data)
         self.labels = np.array(labels)
@@ -63,9 +66,9 @@ class SentenceDataset(Dataset):
         labels = [i for i in df['Category']]
 
         # transform labels from dataset to right format
-        one_hot_multi_label = convert_to_one_hot(labels, len(IDX2LABEL))
+        one_hot_labels = convert_to_one_hot(labels, len(IDX2LABEL))
 
-        return data, one_hot_multi_label
+        return data, one_hot_labels
 
     def __len__(self):
         return len(self.data)
@@ -96,3 +99,30 @@ def convert_to_one_hot(Y, label_size):
             one_hot[LABEL2IDX[l]] = 1
         out.append(one_hot)
     return np.array(out)
+
+def baseline_data(dataframe, tokenizer):
+    largest_sample = max([len(tokenizer.tokenize(i)) for i in dataframe['text']])
+
+    if largest_sample > 512:
+        max_length = 512
+    else:
+        max_length = largest_sample
+
+    data = [
+        tokenizer.encode(i, padding='max_length', max_length=max_length,
+                              truncation=True) for i in dataframe['text']
+    ]
+
+    labels = []
+    for i in dataframe['Category']:
+        if i == "Non-offensive":
+            labels.append(0)
+        else:
+            labels.append(1)
+
+    print(labels)
+    data = np.array(data)
+    labels = np.array(labels)
+    print(labels)
+
+    return data, labels

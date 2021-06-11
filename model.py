@@ -29,8 +29,11 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.dummy import DummyClassifier
+from sklearn.metrics import f1_score, accuracy_score
+from sklearn.svm import SVC, LinearSVC
 
-from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc
+from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset
 
 
 
@@ -184,19 +187,43 @@ if __name__ == "__main__":
     model = BertForSequenceClassification.from_pretrained(pretrained)
     model.num_labels = len(IDX2LABEL)
 
-    # TODO: add more countries for comparisons
-    all_data = SentenceDataset(DATA_PATH, tokenizer)
+    # clean up the dataset
+    DATA_FRAME = preprocessing_dataset(DATA_PATH)
 
     # Split the data in train, dev, test
-    train, rest = train_test_split(all_data, test_size=0.2)
+    train, rest = train_test_split(DATA_FRAME, test_size=0.2)  # lists []
     dev, test = train_test_split(rest, test_size=0.5)
+
+    # use the train, dev and test datasets for different dataformats for the different experiments
+    svm_X_train, svm_y_train = baseline_data(train, tokenizer)
+    svm_X_test, svm_y_test = baseline_data(test, tokenizer)
+
+    bert_data_train = SentenceDataset(train, tokenizer)
+    bert_data_dev = SentenceDataset(dev, tokenizer)
+    bert_data_test = SentenceDataset(test, tokenizer)
+
+    # Baseline model: most frequent with f1-score
+    #dummy_clf = DummyClassifier(strategy="most_frequent")
+    #dummy_clf.fit(svm_X_train, svm_y_train)
+    #print(len(svm_X_test))
+    #print(len(svm_y_test))
+    #dummy_pred = dummy_clf.predict(svm_X_train)
+    #print("Dummy Accuracy Score: ", dummy_clf.score(svm_X_train, svm_y_test))
+    #print('Dummy F1 score:', f1_score(svm_y_train, dummy_pred, average='weighted'))
+
+    # Baseline model: SVM
+    baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
+    baseline_clf.fit(svm_X_train, svm_y_train)
+    baseline_pred = baseline_clf.predict(svm_X_test)
+    print(baseline_pred)
+    print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
+    print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
+
 
     # load the datasets
     train_loader = DataLoader(train, shuffle=False, batch_size=64)
     dev_loader = DataLoader(dev, shuffle=False, batch_size=64)
     test_loader = DataLoader(test, shuffle=False, batch_size=64)
-
-    print("no errors")
 
     # Load model weights from a file
     if args.reload_model:
