@@ -129,6 +129,7 @@ def evaluate(model, loader):
             output = model(input_ids=data)
             predictions = torch.argmax(output.logits, dim=-1)
 
+            # TODO: optimize for performance (speed)
             for i, pred in enumerate(predictions):
                 result = torch.zeros(len(labels[i]), dtype=torch.int64)
                 result[pred] = 1
