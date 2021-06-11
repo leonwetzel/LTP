@@ -24,16 +24,13 @@ LABEL2IDX = {label: i for i, label in enumerate(IDX2LABEL)}
 
 
 class SentenceDataset(Dataset):
-    def __init__(self, data_file, country, tokenizer):
+    def __init__(self, data_file, tokenizer):
         super().__init__()
         # load tokenizer
         self.tokenizer = tokenizer
 
         # load dataset
         df = pd.read_csv(data_file, sep=',', quotechar='"')
-
-        # get data from given country parameter
-        df = df.loc[df['Country'] == country]
 
         # clean dataframe from missing values
         df = df[df['text'].notnull()]

@@ -185,36 +185,30 @@ if __name__ == "__main__":
     model.num_labels = len(IDX2LABEL)
 
     # TODO: add more countries for comparisons
-    fr_data = SentenceDataset(DATA_PATH, 'France', tokenizer)
-    gr_data = SentenceDataset(DATA_PATH, 'Germany', tokenizer)
+    all_data = SentenceDataset(DATA_PATH, tokenizer)
 
-    # load data per language
-    fr_train, fr_rest = train_test_split(fr_data, test_size=0.2)
-    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.5)
-    gr_train, gr_rest = train_test_split(gr_data, test_size=0.2)
-    gr_dev, gr_test = train_test_split(gr_rest, test_size=0.5)
+    # Split the data in train, dev, test
+    train, rest = train_test_split(all_data, test_size=0.2)
+    dev, test = train_test_split(rest, test_size=0.5)
 
-    # make French splits
-    fr_train_loader = DataLoader(fr_train, shuffle=False, batch_size=64)
-    fr_dev_loader = DataLoader(fr_dev, shuffle=False, batch_size=64)
-    fr_test_loader = DataLoader(fr_test, shuffle=False, batch_size=64)
+    # load the datasets
+    train_loader = DataLoader(train, shuffle=False, batch_size=64)
+    dev_loader = DataLoader(dev, shuffle=False, batch_size=64)
+    test_loader = DataLoader(test, shuffle=False, batch_size=64)
 
-    # make German splits
-    gr_train_loader = DataLoader(gr_train, shuffle=False, batch_size=64)
-    gr_dev_loader = DataLoader(gr_dev, shuffle=False, batch_size=64)
-    gr_test_loader = DataLoader(gr_test, shuffle=False, batch_size=64)
+    print("no errors")
 
     # Load model weights from a file
     if args.reload_model:
         model.load_state_dict(torch.load(args.reload_model))
 
-    evaluate(model, gr_dev_loader)
-    train(model, gr_train_loader, gr_dev_loader, gr_test_loader, args.epochs)
+    evaluate(model, dev_loader)
+    train(model, train_loader, dev_loader, test_loader, args.epochs)
 
     # Write output to file
     if args.output_file:
         print("Writing output to file...")
-        write_to_file(model, gr_dev_loader, args.output_file)
+        write_to_file(model, dev_loader, args.output_file)
 
     if args.save_model:
         torch.save(model.state_dict(), args.save_model)
