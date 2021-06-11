@@ -30,8 +30,11 @@ from torch.utils.data import DataLoader
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.dummy import DummyClassifier
+from sklearn.metrics import f1_score, accuracy_score
+from sklearn.svm import SVC, LinearSVC
 
-from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc
+from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset
 
 
 
@@ -189,41 +192,55 @@ if __name__ == "__main__":
     model = BertForSequenceClassification.from_pretrained(pretrained)
     model.num_labels = len(IDX2LABEL)
 
-    # TODO: add more countries for comparisons
-    fr_data = SentenceDataset(DATA_PATH, 'France', tokenizer)
-    gr_data = SentenceDataset(DATA_PATH, 'Germany', tokenizer)
+    # clean up the dataset
+    DATA_FRAME = preprocessing_dataset(DATA_PATH)
 
-    print("Splitting data...")
+    # Split the data in train, dev, test
+    train, rest = train_test_split(DATA_FRAME, test_size=0.2)  # lists []
+    dev, test = train_test_split(rest, test_size=0.5)
 
-    # load data per language
-    fr_train, fr_rest = train_test_split(fr_data, test_size=0.2)
-    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.5)
-    gr_train, gr_rest = train_test_split(gr_data, test_size=0.2)
-    gr_dev, gr_test = train_test_split(gr_rest, test_size=0.5)
+    # use the train, dev and test datasets for different dataformats for the different experiments
+    svm_X_train, svm_y_train = baseline_data(train, tokenizer)
+    svm_X_test, svm_y_test = baseline_data(test, tokenizer)
 
-    # make French splits
-    print(f"(France) Creating DataLoaders...")
-    fr_train_loader = DataLoader(fr_train, shuffle=False, batch_size=64)
-    fr_dev_loader = DataLoader(fr_dev, shuffle=False, batch_size=64)
-    fr_test_loader = DataLoader(fr_test, shuffle=False, batch_size=64)
+    bert_data_train = SentenceDataset(train, tokenizer)
+    bert_data_dev = SentenceDataset(dev, tokenizer)
+    bert_data_test = SentenceDataset(test, tokenizer)
 
-    # make German splits
-    print(f"(Germany) Creating DataLoaders...")
-    gr_train_loader = DataLoader(gr_train, shuffle=False, batch_size=64)
-    gr_dev_loader = DataLoader(gr_dev, shuffle=False, batch_size=64)
-    gr_test_loader = DataLoader(gr_test, shuffle=False, batch_size=64)
+    # Baseline model: most frequent with f1-score
+    #dummy_clf = DummyClassifier(strategy="most_frequent")
+    #dummy_clf.fit(svm_X_train, svm_y_train)
+    #print(len(svm_X_test))
+    #print(len(svm_y_test))
+    #dummy_pred = dummy_clf.predict(svm_X_train)
+    #print("Dummy Accuracy Score: ", dummy_clf.score(svm_X_train, svm_y_test))
+    #print('Dummy F1 score:', f1_score(svm_y_train, dummy_pred, average='weighted'))
+
+    # Baseline model: SVM
+    baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
+    baseline_clf.fit(svm_X_train, svm_y_train)
+    baseline_pred = baseline_clf.predict(svm_X_test)
+    print(baseline_pred)
+    print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
+    print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
+
+
+    # load the datasets
+    train_loader = DataLoader(train, shuffle=False, batch_size=64)
+    dev_loader = DataLoader(dev, shuffle=False, batch_size=64)
+    test_loader = DataLoader(test, shuffle=False, batch_size=64)
 
     # Load model weights from a file
     if args.reload_model:
         model.load_state_dict(torch.load(args.reload_model))
 
-    # evaluate(model, gr_dev_loader)  # TODO: add me back after fixing issues
-    train(model, gr_train_loader, gr_dev_loader, gr_test_loader, args.epochs)
+    evaluate(model, dev_loader)
+    train(model, train_loader, dev_loader, test_loader, args.epochs)
 
     # Write output to file
     if args.output_file:
         print("Writing output to file...")
-        write_to_file(model, gr_dev_loader, args.output_file)
+        write_to_file(model, dev_loader, args.output_file)
 
     if args.save_model:
         torch.save(model.state_dict(), args.save_model)
