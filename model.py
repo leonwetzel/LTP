@@ -44,6 +44,8 @@ parser.add_argument("--num_hidden_layers", type=int, default=1)
 parser.add_argument("--num_attn_heads", type=int, default=1)
 parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output.txt')
 
+RUN_BASELINE = False
+
 
 def train(model, train_loader, valid_loader, test_loader, epochs=3):
     """
@@ -173,8 +175,8 @@ if __name__ == "__main__":
     np.random.seed(0)
     args = parser.parse_args()
 
-    print(f"Available devices: {torch.cuda.device_count()} ({torch.cuda.get_device_name(0)})")
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # print(f"Available devices: {torch.cuda.device_count()} ({torch.cuda.get_device_name(0)})")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Using {} device'.format(device))
 
     # For more info, see https://huggingface.co/bert-base-multilingual-cased
@@ -190,44 +192,45 @@ if __name__ == "__main__":
     DATA_FRAME = preprocessing_dataset(DATA_PATH)
 
     # Split the data in train, dev, test
-    train, rest = train_test_split(DATA_FRAME, test_size=0.2)  # lists []
+    training, rest = train_test_split(DATA_FRAME, test_size=0.2)  # lists []
     dev, test = train_test_split(rest, test_size=0.5)
 
-    # use the train, dev and test datasets for different dataformats for the different experiments
-    svm_X_train, svm_y_train = baseline_data(train, tokenizer)
-    svm_X_test, svm_y_test = baseline_data(test, tokenizer)
-
-    bert_data_train = SentenceDataset(train, tokenizer)
+    bert_data_train = SentenceDataset(training, tokenizer)
     bert_data_dev = SentenceDataset(dev, tokenizer)
     bert_data_test = SentenceDataset(test, tokenizer)
 
-    # Baseline model: most frequent with f1-score
-    #dummy_clf = DummyClassifier(strategy="most_frequent")
-    #dummy_clf.fit(svm_X_train, svm_y_train)
-    #print(len(svm_X_test))
-    #print(len(svm_y_test))
-    #dummy_pred = dummy_clf.predict(svm_X_train)
-    #print("Dummy Accuracy Score: ", dummy_clf.score(svm_X_train, svm_y_test))
-    #print('Dummy F1 score:', f1_score(svm_y_train, dummy_pred, average='weighted'))
+    # use the train, dev and test datasets for different dataformats for the different experiments
+    if RUN_BASELINE:
+        svm_X_train, svm_y_train = baseline_data(training, tokenizer)
+        svm_X_test, svm_y_test = baseline_data(test, tokenizer)
 
-    # Baseline model: SVM
-    baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
-    baseline_clf.fit(svm_X_train, svm_y_train)
-    baseline_pred = baseline_clf.predict(svm_X_test)
-    print(baseline_pred)
-    print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
-    print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
+        # Baseline model: most frequent with f1-score
+        #dummy_clf = DummyClassifier(strategy="most_frequent")
+        #dummy_clf.fit(svm_X_train, svm_y_train)
+        #print(len(svm_X_test))
+        #print(len(svm_y_test))
+        #dummy_pred = dummy_clf.predict(svm_X_train)
+        #print("Dummy Accuracy Score: ", dummy_clf.score(svm_X_train, svm_y_test))
+        #print('Dummy F1 score:', f1_score(svm_y_train, dummy_pred, average='weighted'))
+
+        # Baseline model: SVM
+        baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
+        baseline_clf.fit(svm_X_train, svm_y_train)
+        baseline_pred = baseline_clf.predict(svm_X_test)
+        print(baseline_pred)
+        print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
+        print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
 
     # load the datasets
-    train_loader = DataLoader(train, shuffle=False, batch_size=64)
-    dev_loader = DataLoader(dev, shuffle=False, batch_size=64)
-    test_loader = DataLoader(test, shuffle=False, batch_size=64)
+    train_loader = DataLoader(training, shuffle=False, batch_size=256)
+    dev_loader = DataLoader(dev, shuffle=False, batch_size=256)
+    test_loader = DataLoader(test, shuffle=False, batch_size=256)
 
     # Load model weights from a file
     if args.reload_model:
         model.load_state_dict(torch.load(args.reload_model))
 
-    evaluate(model, dev_loader)
+    # evaluate(model, dev_loader)
     train(model, train_loader, dev_loader, test_loader, args.epochs)
 
     # Write output to file
