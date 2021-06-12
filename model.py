@@ -189,9 +189,13 @@ if __name__ == "__main__":
     # clean up the dataset
     DATA_FRAME = preprocessing_dataset(DATA_PATH)
 
-    # Split the data in train, dev, test
+    # Split the data in train, dev, test (old way)
     train, rest = train_test_split(DATA_FRAME, test_size=0.2)  # lists []
     dev, test = train_test_split(rest, test_size=0.5)
+
+    # Split the data in train (70%), dev (20%) and test (10%) taking into account
+    # that the data from different countries is evenly divided over the three sets
+    # train, dev, test = dividing_dataset(df)
 
     # use the train, dev and test datasets for different dataformats for the different experiments
     svm_X_train, svm_y_train = baseline_data(train, tokenizer)
