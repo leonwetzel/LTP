@@ -195,7 +195,13 @@ if __name__ == "__main__":
 
     # Split the data in train (70%), dev (20%) and test (10%) taking into account
     # that the data from different countries is evenly divided over the three sets
-    # train, dev, test = dividing_dataset(df)
+
+    separated == False
+
+    if sep_test_sets == True:
+        train, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(df,sep_test_sets=separated)
+    else:
+        train, dev, test = dividing_dataset(df)
 
     # use the train, dev and test datasets for different dataformats for the different experiments
     svm_X_train, svm_y_train = baseline_data(train, tokenizer)

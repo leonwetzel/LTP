@@ -47,7 +47,7 @@ def preprocessing_dataset(data_file):
 
     return df
 
-def dividing_dataset(dataframe):
+def dividing_dataset(dataframe, sep_test_sets=False):
     # Split the data per country
     fr_df = dataframe.loc[dataframe['Country'] == 'France']
     it_df = dataframe.loc[dataframe['Country'] == 'Italy']
@@ -66,20 +66,20 @@ def dividing_dataset(dataframe):
     #   0.3 * (1/3) = 0.1 (10%)
 
     # Splitting data from France:
-    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3)  # lists []
-    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33)
+    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3, random_state=42)  # lists []
+    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33, random_state=42)
 
     # Splitting data from Italy:
-    it_train, it_rest = train_test_split(it_df, test_size=0.3)  # lists []
-    it_dev, it_test = train_test_split(it_rest, test_size=0.33)
+    it_train, it_rest = train_test_split(it_df, test_size=0.3, random_state=42)  # lists []
+    it_dev, it_test = train_test_split(it_rest, test_size=0.33, random_state=42)
 
     # Splitting data from Germany:
-    de_train, de_rest = train_test_split(de_df, test_size=0.3)  # lists []
-    de_dev, de_test = train_test_split(de_rest, test_size=0.33)
+    de_train, de_rest = train_test_split(de_df, test_size=0.3, random_state=42)  # lists []
+    de_dev, de_test = train_test_split(de_rest, test_size=0.33, random_state=42)
 
     # Splitting data from Switzerland:
-    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3)  # lists []
-    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33)
+    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3, random_state=42)  # lists []
+    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=42)
 
     # Concatenate train sets:
     train = fr_train + it_train + de_train + ch_train
@@ -87,10 +87,14 @@ def dividing_dataset(dataframe):
     # Concatenate dev sets:
     dev = fr_dev + it_dev + de_dev + ch_dev
 
-    # Concatenate test sets:
-    test = fr_test + it_test + de_test + ch_test
+    if sep_test_sets == True:
+        return train, dev, fr_test, it_test, de_test, ch_test
 
-    return train, dev, test
+    else:
+        # Concatenate test sets:
+        test = fr_test + it_test + de_test + ch_test
+
+        return train, dev, test
 
 
 class SentenceDataset(Dataset):
