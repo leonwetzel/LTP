@@ -9,3 +9,5 @@ Dit model evaluaten op all, Germany, France, Italy en Switzerland
 None category undersamplen
 Undersampled model trainen
 Dit model evaluaten op all, Germany, France, Italy en Switzerland
+
+Baselines nieuwe distributie, undersampled
