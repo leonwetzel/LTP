@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     separated == False
 
-    if sep_test_sets == True:
+    if separated == True:
         train, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(df,sep_test_sets=separated)
     else:
         train, dev, test = dividing_dataset(df)
