@@ -32,7 +32,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.svm import LinearSVC
 
-from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset
+from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset, dividing_dataset
 
 parser = argparse.ArgumentParser(description="POS tagging")
 parser.add_argument("--reload_model", type=str, help="Path of model to reload")
@@ -42,6 +42,8 @@ parser.add_argument("--epochs", type=int, default=1)
 parser.add_argument("--num_hidden_layers", type=int, default=1)
 parser.add_argument("--num_attn_heads", type=int, default=1)
 parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output.txt')
+parser.add_argument("--undersampling", type=int, help="Set the use of undersampling the non-offensive class", default=0)
+parser.add_argument("--sep_test_sets", type=int, default="0")
 
 
 def train(model, train_loader, valid_loader, test_loader, epochs=3):
@@ -100,8 +102,27 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
     print("############## END OF TRAINING ##############")
     acc = evaluate(model, valid_loader)
     print("Final Acc (valid): %.4f" % (acc))
-    acc = evaluate(model, test_loader)
-    print("Final Acc (test): %.4f" % (acc))
+
+    if type(test_loader) is list:
+        print("France:")
+        acc = evaluate(model, test_loader[0])
+        print("Final Acc (test): %.4f" % (acc))
+
+        print("Italy:")
+        acc = evaluate(model, test_loader[1])
+        print("Final Acc (test): %.4f" % (acc))
+
+        print("Germany:")
+        acc = evaluate(model, test_loader[2])
+        print("Final Acc (test): %.4f" % (acc))
+
+        print("Switzerland:")
+        acc = evaluate(model, test_loader[3])
+        print("Final Acc (test): %.4f" % (acc))
+
+    else:
+        acc = evaluate(model, test_loader)
+        print("Final Acc (test): %.4f" % (acc))
 
 
 def evaluate(model, loader):
@@ -133,8 +154,6 @@ def evaluate(model, loader):
                 if torch.equal(result, labels[i]):
                     correct += 1
                 total += 1
-
-            # total += len(data)
 
     print(f"Accuracy: {correct / total}")
     model.train()
@@ -169,7 +188,6 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     np.random.seed(0)
     args = parser.parse_args()
-    run_baseline = False
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Using {} device'.format(device))
@@ -187,21 +205,102 @@ if __name__ == "__main__":
     DATA_FRAME = preprocessing_dataset(DATA_PATH)
 
     # Split the data in train, dev, test (old way)
-    training, rest = train_test_split(DATA_FRAME, test_size=0.2)  # lists []
-    dev, test = train_test_split(rest, test_size=0.5)
+    # train, rest = train_test_split(DATA_FRAME, test_size=0.2)  # lists []
+    # dev, test = train_test_split(rest, test_size=0.5)
 
+    # Check whether test sets should be separated per country
+    separated = False if args.sep_test_sets == 0 else True
+    undersampling = args.undersampling
     # Split the data in train (70%), dev (20%) and test (10%) taking into account
     # that the data from different countries is evenly divided over the three sets
-    # train, dev, test = dividing_dataset(df)
+    if separated == True:
+        train, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(DATA_FRAME,sep_test_sets=separated, undersampling=undersampling)
 
-    bert_data_train = SentenceDataset(training, tokenizer)
-    bert_data_dev = SentenceDataset(dev, tokenizer)
-    bert_data_test = SentenceDataset(test, tokenizer)
-
-    if run_baseline:
         # use the train, dev and test datasets for different dataformats for the different experiments
-        svm_X_train, svm_y_train = baseline_data(training, tokenizer)
+        svm_X_train, svm_y_train = baseline_data(train, tokenizer)
+        svm_X_test_fr, svm_y_test_fr = baseline_data(fr_test, tokenizer)
+        svm_X_test_it, svm_y_test_it = baseline_data(it_test, tokenizer)
+        svm_X_test_de, svm_y_test_de = baseline_data(de_test, tokenizer)
+        svm_X_test_ch, svm_y_test_ch = baseline_data(ch_test, tokenizer)
+
+        bert_data_train = SentenceDataset(train, tokenizer)
+        bert_data_dev = SentenceDataset(dev, tokenizer)
+        bert_data_test_fr = SentenceDataset(fr_test, tokenizer)
+        bert_data_test_it = SentenceDataset(it_test, tokenizer)
+        bert_data_test_de = SentenceDataset(de_test, tokenizer)
+        bert_data_test_ch = SentenceDataset(ch_test, tokenizer)
+
+        # Baseline model: SVM
+        baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
+        baseline_clf.fit(svm_X_train, svm_y_train)
+
+        # France:
+        print("Baseline model for France:")
+        baseline_pred_fr = baseline_clf.predict(svm_X_test_fr)
+        # print(baseline_pred_fr)
+        print("Baseline Accuracy:", accuracy_score(svm_y_test_fr, baseline_pred_fr))
+        print('Baseline F1 score:', f1_score(svm_y_test_fr, baseline_pred_fr, average='weighted'))
+        print()
+
+        # Italy:
+        print("Baseline model for Italy:")
+        baseline_pred_it = baseline_clf.predict(svm_X_test_it)
+        # print(baseline_pred_it)
+        print("Baseline Accuracy:", accuracy_score(svm_y_test_it, baseline_pred_it))
+        print('Baseline F1 score:', f1_score(svm_y_test_it, baseline_pred_it, average='weighted'))
+        print()
+
+        # Germany:
+        print("Baseline model for Germany:")
+        baseline_pred_de = baseline_clf.predict(svm_X_test_de)
+        # print(baseline_pred_de)
+        print("Baseline Accuracy:", accuracy_score(svm_y_test_de, baseline_pred_de))
+        print('Baseline F1 score:', f1_score(svm_y_test_de, baseline_pred_de, average='weighted'))
+        print()
+
+        # Switzerland:
+        print("Baseline model for Switzerland:")
+        baseline_pred_ch = baseline_clf.predict(svm_X_test_ch)
+        # print(baseline_pred_ch)
+        print("Baseline Accuracy:", accuracy_score(svm_y_test_ch, baseline_pred_ch))
+        print('Baseline F1 score:', f1_score(svm_y_test_ch, baseline_pred_ch, average='weighted'))
+        print()
+        print()
+
+        # load the datasets
+        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=64)
+        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=64)
+        test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False, batch_size=64)
+        test_loader_it = DataLoader(bert_data_test_it, shuffle=False, batch_size=64)
+        test_loader_de = DataLoader(bert_data_test_de, shuffle=False, batch_size=64)
+        test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False, batch_size=64)
+        test_loader = [test_loader_fr, test_loader_it, test_loader_de, test_loader_ch]
+
+        # Load model weights from a file
+        if args.reload_model:
+            model.load_state_dict(torch.load(args.reload_model))
+
+        evaluate(model, dev_loader)
+        train(model, train_loader, dev_loader, test_loader, args.epochs)
+
+        # Write output to file
+        if args.output_file:
+            print("Writing output to file...")
+            write_to_file(model, dev_loader, args.output_file)
+
+        if args.save_model:
+            torch.save(model.state_dict(), args.save_model)
+    else:
+        train, dev, test = dividing_dataset(DATA_FRAME, undersampling=undersampling)
+
+
+        # use the train, dev and test datasets for different dataformats for the different experiments
+        svm_X_train, svm_y_train = baseline_data(train, tokenizer)
         svm_X_test, svm_y_test = baseline_data(test, tokenizer)
+
+        bert_data_train = SentenceDataset(train, tokenizer)
+        bert_data_dev = SentenceDataset(dev, tokenizer)
+        bert_data_test = SentenceDataset(test, tokenizer)
 
         # Baseline model: most frequent with f1-score
         #dummy_clf = DummyClassifier(strategy="most_frequent")
@@ -216,27 +315,26 @@ if __name__ == "__main__":
         baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
         baseline_clf.fit(svm_X_train, svm_y_train)
         baseline_pred = baseline_clf.predict(svm_X_test)
-        print(baseline_pred)
+        # print(baseline_pred)
         print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
         print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
 
-    # load the datasets
-    train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=64)
-    dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=64)
-    test_loader = DataLoader(bert_data_test, shuffle=False, batch_size=64)
+        # load the datasets
+        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=64)
+        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=64)
+        test_loader = DataLoader(bert_data_test, shuffle=False, batch_size=64)
 
-    # Load model weights from a file
-    if args.reload_model:
-        model.load_state_dict(torch.load(args.reload_model))
+        # Load model weights from a file
+        if args.reload_model:
+            model.load_state_dict(torch.load(args.reload_model))
 
-    evaluate(model, dev_loader)
-    exit()
-    train(model, train_loader, dev_loader, test_loader, args.epochs)
+        evaluate(model, dev_loader)
+        train(model, train_loader, dev_loader, test_loader, args.epochs)
 
-    # Write output to file
-    # if args.output_file:
-    #     print("Writing output to file...")
-    #     write_to_file(model, dev_loader, args.output_file)
+        # Write output to file
+        if args.output_file:
+            print("Writing output to file...")
+            write_to_file(model, dev_loader, args.output_file)
 
-    if args.save_model:
-        torch.save(model.state_dict(), args.save_model)
+        if args.save_model:
+            torch.save(model.state_dict(), args.save_model)
