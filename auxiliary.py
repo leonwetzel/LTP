@@ -14,83 +14,12 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import CountVectorizer
-from torch.utils.data import Dataset, DataLoader
-from transformers import BertTokenizer
+from torch.utils.data import Dataset
 
 DATA_PATH = "data/PSP_data.csv"
 
 IDX2LABEL = ['Non-offensive', 'Offensive']
 LABEL2IDX = {label: i for i, label in enumerate(IDX2LABEL)}
-
-
-def preprocessing_dataset(data_file):
-    # load dataset
-    df = pd.read_csv(data_file, sep=',', quotechar='"')
-
-    # clean dataframe from missing values
-    df = df[df['text'].notnull()]
-    df = df[df['Category'].notnull()]
-
-    # identify not retrievable tweets
-    indices = []
-    for index, row in df.iterrows():
-        if "The full tweet text was not retrievable." in row['text']:
-            indices.append(index)
-
-    # drop rows that contain not retrievable tweets
-    df = df.drop(indices)
-
-    # convert multi class labels to binairy labels
-    df.loc[df['Category'] != "None", "Category"] = 'Offensive'
-    df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
-
-    return df
-
-def dividing_dataset(dataframe):
-    # Split the data per country
-    fr_df = dataframe.loc[dataframe['Country'] == 'France']
-    it_df = dataframe.loc[dataframe['Country'] == 'Italy']
-    de_df = dataframe.loc[dataframe['Country'] == 'Germany']
-    ch_df = dataframe.loc[dataframe['Country'] == 'Switzerland']
-
-    # For each country, split the data in train (70%), dev (20%), test (10%)
-    # Calculations:
-    # - train:
-    #   1 - 0.3 = 0.7 (70%)
-    # - dev:
-    #   1 - 0.7 = 0.3
-    #   0.3 * (2/3) = 0.2 (20%)
-    # - test:
-    #   1 - 0.7 = 0.3
-    #   0.3 * (1/3) = 0.1 (10%)
-
-    # Splitting data from France:
-    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3)  # lists []
-    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33)
-
-    # Splitting data from Italy:
-    it_train, it_rest = train_test_split(it_df, test_size=0.3)  # lists []
-    it_dev, it_test = train_test_split(it_rest, test_size=0.33)
-
-    # Splitting data from Germany:
-    de_train, de_rest = train_test_split(de_df, test_size=0.3)  # lists []
-    de_dev, de_test = train_test_split(de_rest, test_size=0.33)
-
-    # Splitting data from Switzerland:
-    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3)  # lists []
-    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33)
-
-    # Concatenate train sets:
-    train = fr_train + it_train + de_train + ch_train
-
-    # Concatenate dev sets:
-    dev = fr_dev + it_dev + de_dev + ch_dev
-
-    # Concatenate test sets:
-    test = fr_test + it_test + de_test + ch_test
-
-    return train, dev, test
 
 
 class SentenceDataset(Dataset):
@@ -185,3 +114,73 @@ def baseline_data(dataframe, tokenizer):
     print(labels)
 
     return data, labels
+
+
+def preprocessing_dataset(data_file):
+    # load dataset
+    df = pd.read_csv(data_file, sep=',', quotechar='"')
+
+    # clean dataframe from missing values
+    df = df[df['text'].notnull()]
+    df = df[df['Category'].notnull()]
+
+    # identify not retrievable tweets
+    indices = []
+    for index, row in df.iterrows():
+        if "The full tweet text was not retrievable." in row['text']:
+            indices.append(index)
+
+    # drop rows that contain not retrievable tweets
+    df = df.drop(indices)
+
+    # convert multi class labels to binairy labels
+    df.loc[df['Category'] != "None", "Category"] = 'Offensive'
+    df.loc[df['Category'] == "None", "Category"] = 'Non-offensive'
+
+    return df
+
+
+def dividing_dataset(dataframe):
+    # Split the data per country
+    fr_df = dataframe.loc[dataframe['Country'] == 'France']
+    it_df = dataframe.loc[dataframe['Country'] == 'Italy']
+    de_df = dataframe.loc[dataframe['Country'] == 'Germany']
+    ch_df = dataframe.loc[dataframe['Country'] == 'Switzerland']
+
+    # For each country, split the data in train (70%), dev (20%), test (10%)
+    # Calculations:
+    # - train:
+    #   1 - 0.3 = 0.7 (70%)
+    # - dev:
+    #   1 - 0.7 = 0.3
+    #   0.3 * (2/3) = 0.2 (20%)
+    # - test:
+    #   1 - 0.7 = 0.3
+    #   0.3 * (1/3) = 0.1 (10%)
+
+    # Splitting data from France:
+    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3)  # lists []
+    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33)
+
+    # Splitting data from Italy:
+    it_train, it_rest = train_test_split(it_df, test_size=0.3)  # lists []
+    it_dev, it_test = train_test_split(it_rest, test_size=0.33)
+
+    # Splitting data from Germany:
+    de_train, de_rest = train_test_split(de_df, test_size=0.3)  # lists []
+    de_dev, de_test = train_test_split(de_rest, test_size=0.33)
+
+    # Splitting data from Switzerland:
+    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3)  # lists []
+    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33)
+
+    # Concatenate train sets:
+    train = fr_train + it_train + de_train + ch_train
+
+    # Concatenate dev sets:
+    dev = fr_dev + it_dev + de_dev + ch_dev
+
+    # Concatenate test sets:
+    test = fr_test + it_test + de_test + ch_test
+
+    return train, dev, test
