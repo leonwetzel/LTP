@@ -47,12 +47,19 @@ def preprocessing_dataset(data_file):
 
     return df
 
-def dividing_dataset(dataframe, sep_test_sets=False):
+def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     # Split the data per country
     fr_df = dataframe.loc[dataframe['Country'] == 'France']
     it_df = dataframe.loc[dataframe['Country'] == 'Italy']
     de_df = dataframe.loc[dataframe['Country'] == 'Germany']
     ch_df = dataframe.loc[dataframe['Country'] == 'Switzerland']
+
+    # check for undersampling and change de dataframes accordingly
+    if undersampling == 1:
+        fr_df = undersample(fr_df)
+        it_df = undersample(it_df)
+        de_df = undersample(de_df)
+        ch_df = undersample(ch_df)
 
     # For each country, split the data in train (70%), dev (20%), test (10%)
     # Calculations:
@@ -82,20 +89,31 @@ def dividing_dataset(dataframe, sep_test_sets=False):
     ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=42)
 
     # Concatenate train sets:
-    train = fr_train + it_train + de_train + ch_train
+    train = fr_train.append(it_train).append(de_train).append(ch_train)
 
     # Concatenate dev sets:
-    dev = fr_dev + it_dev + de_dev + ch_dev
+    dev = fr_dev.append(it_dev).append(de_dev).append(ch_dev)
 
     if sep_test_sets == True:
         return train, dev, fr_test, it_test, de_test, ch_test
 
     else:
         # Concatenate test sets:
-        test = fr_test + it_test + de_test + ch_test
+        test = fr_test.append(it_test).append(de_test).append(ch_test)
 
         return train, dev, test
 
+def undersample(df):
+    off_df = df.loc[df['Category'] == 'Offensive']
+    not_df = df.loc[df['Category'] == 'Non-offensive']
+    off_count = len(off_df)
+
+    not_count = (off_count // 3) * 7
+
+    not_sample = not_df.sample(n=not_count, random_state=42)
+    new_df = off_df.append(not_sample)
+
+    return new_df
 
 class SentenceDataset(Dataset):
     def __init__(self, data_frame, tokenizer):
@@ -183,9 +201,7 @@ def baseline_data(dataframe, tokenizer):
         else:
             labels.append(1)
 
-    print(labels)
     data = np.array(data)
     labels = np.array(labels)
-    print(labels)
 
     return data, labels

@@ -33,7 +33,7 @@ from sklearn.dummy import DummyClassifier
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.svm import SVC, LinearSVC
 
-from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset
+from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset, dividing_dataset
 
 parser = argparse.ArgumentParser(description="POS tagging")
 parser.add_argument("--reload_model", type=str, help="Path of model to reload")
@@ -43,6 +43,7 @@ parser.add_argument("--epochs", type=int, default=1)
 parser.add_argument("--num_hidden_layers", type=int, default=1)
 parser.add_argument("--num_attn_heads", type=int, default=1)
 parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output.txt')
+parser.add_argument("--undersampling", type=int, help="Set the use of undersampling the non-offensive class", default=0)
 parser.add_argument("--sep_test_sets", type=int, default="0")
 
 
@@ -193,8 +194,8 @@ if __name__ == "__main__":
     np.random.seed(0)
     args = parser.parse_args()
 
-    print(f"Available devices: {torch.cuda.device_count()} ({torch.cuda.get_device_name(0)})")
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #print(f"Available devices: {torch.cuda.device_count()} ({torch.cuda.get_device_name(0)})")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #"cuda"0
     print('Using {} device'.format(device))
 
     # For more info, see https://huggingface.co/bert-base-multilingual-cased
@@ -215,11 +216,11 @@ if __name__ == "__main__":
 
     # Check whether test sets should be separated per country
     separated = False if args.sep_test_sets == 0 else True
-
+    undersampling = args.undersampling
     # Split the data in train (70%), dev (20%) and test (10%) taking into account
     # that the data from different countries is evenly divided over the three sets
     if separated == True:
-        train, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(DATA_FRAME,sep_test_sets=separated)
+        train, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(DATA_FRAME,sep_test_sets=separated, undersampling=undersampling)
 
         # use the train, dev and test datasets for different dataformats for the different experiments
         svm_X_train, svm_y_train = baseline_data(train, tokenizer)
@@ -296,7 +297,8 @@ if __name__ == "__main__":
         if args.save_model:
             torch.save(model.state_dict(), args.save_model)
     else:
-        train, dev, test = dividing_dataset(df)
+        train, dev, test = dividing_dataset(DATA_FRAME, undersampling=undersampling)
+
 
         # use the train, dev and test datasets for different dataformats for the different experiments
         svm_X_train, svm_y_train = baseline_data(train, tokenizer)
@@ -319,7 +321,7 @@ if __name__ == "__main__":
         baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
         baseline_clf.fit(svm_X_train, svm_y_train)
         baseline_pred = baseline_clf.predict(svm_X_test)
-        print(baseline_pred)
+        # print(baseline_pred)
         print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
         print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
 
