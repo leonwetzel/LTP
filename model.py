@@ -43,7 +43,7 @@ parser.add_argument("--num_hidden_layers", type=int, default=1)
 parser.add_argument("--num_attn_heads", type=int, default=1)
 parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output.txt')
 parser.add_argument("--undersampling", type=int, help="Set the use of undersampling the non-offensive class", default=0)
-parser.add_argument("--sep_test_sets", type=int, default="0")
+parser.add_argument("--sep_test_sets", type=int, default=0)
 
 
 def train(model, train_loader, valid_loader, test_loader, epochs=3):
@@ -293,6 +293,7 @@ if __name__ == "__main__":
     else:
         train, dev, test = dividing_dataset(DATA_FRAME, undersampling=undersampling)
 
+        print()
 
         # use the train, dev and test datasets for different dataformats for the different experiments
         svm_X_train, svm_y_train = baseline_data(train, tokenizer)

@@ -86,6 +86,28 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     ch_train, ch_rest = train_test_split(ch_df, test_size=0.3, random_state=42)  # lists []
     ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=42)
 
+    """
+    print("France:")
+    print(fr_train['Category'].value_counts())
+    print(fr_dev['Category'].value_counts())
+    print(fr_test['Category'].value_counts())
+
+    print("Italy:")
+    print(it_train['Category'].value_counts())
+    print(it_dev['Category'].value_counts())
+    print(it_test['Category'].value_counts())
+
+    print("Germany:")
+    print(de_train['Category'].value_counts())
+    print(de_dev['Category'].value_counts())
+    print(de_test['Category'].value_counts())
+
+    print("Swiss:")
+    print(ch_train['Category'].value_counts())
+    print(ch_dev['Category'].value_counts())
+    print(ch_test['Category'].value_counts())
+    """
+
     # Concatenate train sets:
     train = fr_train.append(it_train).append(de_train).append(ch_train)
 
@@ -182,10 +204,11 @@ def convert_to_one_hot(Y, label_size):
 def baseline_data(dataframe, tokenizer):
     largest_sample = max([len(tokenizer.tokenize(i)) for i in dataframe['text']])
 
-    if largest_sample > 512:
-        max_length = 512
-    else:
-        max_length = largest_sample
+    max_length = 512
+    #if largest_sample > 512:
+    #    max_length = 512
+    #else:
+    #    max_length = largest_sample
 
     data = [
         tokenizer.encode(i, padding='max_length', max_length=max_length,
@@ -201,5 +224,6 @@ def baseline_data(dataframe, tokenizer):
 
     data = np.array(data)
     labels = np.array(labels)
+    print(labels)
 
     return data, labels
