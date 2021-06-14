@@ -72,20 +72,20 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     #   0.3 * (1/3) = 0.1 (10%)
 
     # Splitting data from France:
-    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3, random_state=420)  # lists []
-    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33, random_state=420)
+    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3, random_state=33)  # lists []
+    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33, random_state=33)
 
     # Splitting data from Italy:
-    it_train, it_rest = train_test_split(it_df, test_size=0.3, random_state=420)  # lists []
-    it_dev, it_test = train_test_split(it_rest, test_size=0.33, random_state=420)
+    it_train, it_rest = train_test_split(it_df, test_size=0.3, random_state=33)  # lists []
+    it_dev, it_test = train_test_split(it_rest, test_size=0.33, random_state=33)
 
     # Splitting data from Germany:
-    de_train, de_rest = train_test_split(de_df, test_size=0.3, random_state=420)  # lists []
-    de_dev, de_test = train_test_split(de_rest, test_size=0.33, random_state=420)
+    de_train, de_rest = train_test_split(de_df, test_size=0.3, random_state=33)  # lists []
+    de_dev, de_test = train_test_split(de_rest, test_size=0.33, random_state=33)
 
     # Splitting data from Switzerland:
-    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3, random_state=420)  # lists []
-    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=420)
+    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3, random_state=33)  # lists []
+    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=33)
 
     print("France:")
     print(fr_train['Category'].value_counts())
@@ -113,7 +113,7 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     # Concatenate dev sets:
     dev = fr_dev.append(it_dev).append(de_dev).append(ch_dev)
 
-    if sep_test_sets == True:
+    if sep_test_sets:
         return train, dev, fr_test, it_test, de_test, ch_test
 
     else:
@@ -129,9 +129,7 @@ def undersample(df):
 
     not_count = (off_count // 3) * 7
 
-    print(df.loc[df['Category'] != "Offensive"])
-
-    not_sample = not_df.sample(n=not_count, random_state=420)
+    not_sample = not_df.sample(n=not_count, random_state=33)
     new_df = off_df.append(not_sample)
 
     return new_df
