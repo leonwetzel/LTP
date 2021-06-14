@@ -45,6 +45,7 @@ def preprocessing_dataset(data_file):
 
     return df
 
+
 def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     # Split the data per country
     fr_df = dataframe.loc[dataframe['Country'] == 'France']
@@ -71,20 +72,20 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     #   0.3 * (1/3) = 0.1 (10%)
 
     # Splitting data from France:
-    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3, random_state=42)  # lists []
-    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33, random_state=42)
+    fr_train, fr_rest = train_test_split(fr_df, test_size=0.3, random_state=420)  # lists []
+    fr_dev, fr_test = train_test_split(fr_rest, test_size=0.33, random_state=420)
 
     # Splitting data from Italy:
-    it_train, it_rest = train_test_split(it_df, test_size=0.3, random_state=42)  # lists []
-    it_dev, it_test = train_test_split(it_rest, test_size=0.33, random_state=42)
+    it_train, it_rest = train_test_split(it_df, test_size=0.3, random_state=420)  # lists []
+    it_dev, it_test = train_test_split(it_rest, test_size=0.33, random_state=420)
 
     # Splitting data from Germany:
-    de_train, de_rest = train_test_split(de_df, test_size=0.3, random_state=42)  # lists []
-    de_dev, de_test = train_test_split(de_rest, test_size=0.33, random_state=42)
+    de_train, de_rest = train_test_split(de_df, test_size=0.3, random_state=420)  # lists []
+    de_dev, de_test = train_test_split(de_rest, test_size=0.33, random_state=420)
 
     # Splitting data from Switzerland:
-    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3, random_state=42)  # lists []
-    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=42)
+    ch_train, ch_rest = train_test_split(ch_df, test_size=0.3, random_state=420)  # lists []
+    ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=420)
 
     print("France:")
     print(fr_train['Category'].value_counts())
@@ -118,8 +119,8 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     else:
         # Concatenate test sets:
         test = fr_test.append(it_test).append(de_test).append(ch_test)
-
         return train, dev, test
+
 
 def undersample(df):
     off_df = df.loc[df['Category'] == 'Offensive']
@@ -128,10 +129,13 @@ def undersample(df):
 
     not_count = (off_count // 3) * 7
 
-    not_sample = not_df.sample(n=not_count, random_state=42)
+    print(df.loc[df['Category'] != "Offensive"])
+
+    not_sample = not_df.sample(n=not_count, random_state=420)
     new_df = off_df.append(not_sample)
 
     return new_df
+
 
 class SentenceDataset(Dataset):
     def __init__(self, data_frame, tokenizer):

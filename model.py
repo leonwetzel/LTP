@@ -42,11 +42,11 @@ parser.add_argument("--epochs", type=int, default=1)
 parser.add_argument("--num_hidden_layers", type=int, default=1)
 parser.add_argument("--num_attn_heads", type=int, default=1)
 parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output.txt')
-parser.add_argument("--undersampling", type=int, help="Set the use of undersampling the non-offensive class", default=0)
-parser.add_argument("--sep_test_sets", type=int, default=0)
+parser.add_argument("--undersampling", type=int, help="Set the use of undersampling the non-offensive class", default=1)
+parser.add_argument("--sep_test_sets", type=int, default=1)
 
 
-def train(model, train_loader, valid_loader, test_loader, epochs=3):
+def train(model, train_loader, valid_loader, test_loader, epochs=1):
     """
     Train the model, given various data splits and an epoch count.
 
@@ -64,8 +64,6 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
 
     """
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
-    # criterion = nn.BCELoss(reduction='mean')  # TODO: change/upgrade if needed
-
     print("Commencing training...")
 
     for epoch in range(epochs):
@@ -73,7 +71,7 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
         total_loss = 0.0
         total_sentences = 0.0
         for index, batch in enumerate(train_loader):
-            print(f"Processing batch {index} of epoch {epoch}...")
+            print(f"(train) Processing batch {index} of epoch {epoch}...")
             data, labels = batch
             total_sentences += data.numel()
 
@@ -100,29 +98,35 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
                 total_sentences = 0.0
 
     print("############## END OF TRAINING ##############")
-    acc = evaluate(model, valid_loader)
-    print("Final Acc (valid): %.4f" % (acc))
+    accuracy, f1 = evaluate(model, valid_loader)
+    print("Final Acc (valid): %.4f" % (accuracy))
+    print("Final F1 (valid: %.4f" % (f1))
 
     if type(test_loader) is list:
         print("France:")
-        acc = evaluate(model, test_loader[0])
-        print("Final Acc (test): %.4f" % (acc))
+        accuracy, f1 = evaluate(model, test_loader[0])
+        print("Final Acc (test): %.4f" % (accuracy))
+        print("Final F1 (test): %.4f" % (f1))
 
         print("Italy:")
-        acc = evaluate(model, test_loader[1])
-        print("Final Acc (test): %.4f" % (acc))
+        accuracy, f1 = evaluate(model, test_loader[1])
+        print("Final Acc (test): %.4f" % (accuracy))
+        print("Final F1 (test): %.4f" % (f1))
 
         print("Germany:")
-        acc = evaluate(model, test_loader[2])
-        print("Final Acc (test): %.4f" % (acc))
+        accuracy, f1 = evaluate(model, test_loader[2])
+        print("Final Acc (test): %.4f" % (accuracy))
+        print("Final F1 (test): %.4f" % (f1))
 
         print("Switzerland:")
-        acc = evaluate(model, test_loader[3])
-        print("Final Acc (test): %.4f" % (acc))
+        accuracy, f1 = evaluate(model, test_loader[3])
+        print("Final Acc (test): %.4f" % (accuracy))
+        print("Final F1 (test): %.4f" % (f1))
 
     else:
-        acc = evaluate(model, test_loader)
-        print("Final Acc (test): %.4f" % (acc))
+        accuracy, f1 = evaluate(model, test_loader)
+        print("Final Acc (test): %.4f" % (accuracy))
+        print("Final F1 (test): %.4f" % (f1))
 
 
 def evaluate(model, loader):
@@ -141,47 +145,43 @@ def evaluate(model, loader):
     print("Evaluating...")
     model.eval()
     with torch.no_grad():
-        correct = 0.0
         total = 0.0
-        for batch in loader:
+        offensive = torch.tensor([[0, 1]], dtype=torch.int64)
+        not_offensive = torch.tensor([[1, 0]], dtype=torch.int64)
+        tp, fp, tn, fn = 0, 0, 0, 0
+        for index, batch in enumerate(loader):
             data, labels = batch
             output = model(input_ids=data)
             predictions = torch.argmax(output.logits, dim=-1)
 
             for i, pred in enumerate(predictions):
+                label = labels[i]
                 result = torch.zeros(2, dtype=torch.int64)
                 result[pred] = 1
-                if torch.equal(result, labels[i]):
-                    correct += 1
+                if torch.equal(result, label):
+                    if torch.equal(result, offensive) and torch.equal(label, offensive):
+                        tp += 1
+                    elif torch.equal(result, not_offensive) and torch.equal(label, not_offensive):
+                        tn += 1
+                else:
+                    if torch.equal(result, offensive) and torch.equal(label, not_offensive):
+                        fn += 1
+                    elif torch.equal(result, not_offensive) and torch.equal(label, offensive):
+                        fp += 1
                 total += 1
 
-    print(f"Accuracy: {correct / total}")
+            print(f"(evaluate) Processed batch {index}...")
+            break
+
+    accuracy = (tp + tn) / total
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * precision * recall / (precision + recall)
+
+    print(f"Accuracy: {accuracy}")
+    print(f"F1 score: {f1}")
     model.train()
-    return correct / total
-
-
-def write_to_file(model, loader, output_file):
-    # TODO fix
-    model.eval()
-    with torch.no_grad():
-        outputs = []
-        for batch in loader:
-            data, labels = batch
-            out = model(input_ids=data)
-            preds = out.logits.argmax(dim=-1)
-
-            for b in range(preds.size(0)):
-                sent = []
-                for i in range(preds.size(1)):
-                    pass
-                    # if labels[b, i] != IGNORE_IDX:
-                    #    sent.append(IDX2POS[preds[b, i]])
-                outputs.append(" ".join(sent))
-
-    with open(output_file, 'w', encoding='utf8') as file:
-        for line in outputs:
-            file.write(line + "\n")
-    model.train()
+    return accuracy, f1
 
 
 if __name__ == "__main__":
@@ -213,17 +213,19 @@ if __name__ == "__main__":
     undersampling = args.undersampling
     # Split the data in train (70%), dev (20%) and test (10%) taking into account
     # that the data from different countries is evenly divided over the three sets
-    if separated == True:
-        train, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(DATA_FRAME,sep_test_sets=separated, undersampling=undersampling)
+    if separated:
+        training, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(DATA_FRAME,
+                                                                          sep_test_sets=separated,
+                                                                          undersampling=undersampling)
 
         # use the train, dev and test datasets for different dataformats for the different experiments
-        svm_X_train, svm_y_train = baseline_data(train, tokenizer)
-        svm_X_test_fr, svm_y_test_fr = baseline_data(fr_test, tokenizer)
-        svm_X_test_it, svm_y_test_it = baseline_data(it_test, tokenizer)
-        svm_X_test_de, svm_y_test_de = baseline_data(de_test, tokenizer)
-        svm_X_test_ch, svm_y_test_ch = baseline_data(ch_test, tokenizer)
+        # svm_X_train, svm_y_train = baseline_data(train, tokenizer)
+        # svm_X_test_fr, svm_y_test_fr = baseline_data(fr_test, tokenizer)
+        # svm_X_test_it, svm_y_test_it = baseline_data(it_test, tokenizer)
+        # svm_X_test_de, svm_y_test_de = baseline_data(de_test, tokenizer)
+        # svm_X_test_ch, svm_y_test_ch = baseline_data(ch_test, tokenizer)
 
-        bert_data_train = SentenceDataset(train, tokenizer)
+        bert_data_train = SentenceDataset(training, tokenizer)
         bert_data_dev = SentenceDataset(dev, tokenizer)
         bert_data_test_fr = SentenceDataset(fr_test, tokenizer)
         bert_data_test_it = SentenceDataset(it_test, tokenizer)
@@ -231,75 +233,60 @@ if __name__ == "__main__":
         bert_data_test_ch = SentenceDataset(ch_test, tokenizer)
 
         # Baseline model: SVM
-        baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
-        baseline_clf.fit(svm_X_train, svm_y_train)
-
-        # France:
-        print("Baseline model for France:")
-        baseline_pred_fr = baseline_clf.predict(svm_X_test_fr)
-        # print(baseline_pred_fr)
-        print("Baseline Accuracy:", accuracy_score(svm_y_test_fr, baseline_pred_fr))
-        print('Baseline F1 score:', f1_score(svm_y_test_fr, baseline_pred_fr, average='weighted'))
-        print()
-
-        # Italy:
-        print("Baseline model for Italy:")
-        baseline_pred_it = baseline_clf.predict(svm_X_test_it)
-        # print(baseline_pred_it)
-        print("Baseline Accuracy:", accuracy_score(svm_y_test_it, baseline_pred_it))
-        print('Baseline F1 score:', f1_score(svm_y_test_it, baseline_pred_it, average='weighted'))
-        print()
-
-        # Germany:
-        print("Baseline model for Germany:")
-        baseline_pred_de = baseline_clf.predict(svm_X_test_de)
-        # print(baseline_pred_de)
-        print("Baseline Accuracy:", accuracy_score(svm_y_test_de, baseline_pred_de))
-        print('Baseline F1 score:', f1_score(svm_y_test_de, baseline_pred_de, average='weighted'))
-        print()
-
-        # Switzerland:
-        print("Baseline model for Switzerland:")
-        baseline_pred_ch = baseline_clf.predict(svm_X_test_ch)
-        # print(baseline_pred_ch)
-        print("Baseline Accuracy:", accuracy_score(svm_y_test_ch, baseline_pred_ch))
-        print('Baseline F1 score:', f1_score(svm_y_test_ch, baseline_pred_ch, average='weighted'))
-        print()
-        print()
+        # baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
+        # print(svm_y_train)
+        # baseline_clf.fit(svm_X_train, svm_y_train)
+        #
+        # # France:
+        # print("Baseline model for France:")
+        # baseline_pred_fr = baseline_clf.predict(svm_X_test_fr)
+        # # print(baseline_pred_fr)
+        # print("Baseline Accuracy:", accuracy_score(svm_y_test_fr, baseline_pred_fr))
+        # print('Baseline F1 score:', f1_score(svm_y_test_fr, baseline_pred_fr, average='weighted'))
+        # print()
+        #
+        # # Italy:
+        # print("Baseline model for Italy:")
+        # baseline_pred_it = baseline_clf.predict(svm_X_test_it)
+        # # print(baseline_pred_it)
+        # print("Baseline Accuracy:", accuracy_score(svm_y_test_it, baseline_pred_it))
+        # print('Baseline F1 score:', f1_score(svm_y_test_it, baseline_pred_it, average='weighted'))
+        # print()
+        #
+        # # Germany:
+        # print("Baseline model for Germany:")
+        # baseline_pred_de = baseline_clf.predict(svm_X_test_de)
+        # # print(baseline_pred_de)
+        # print("Baseline Accuracy:", accuracy_score(svm_y_test_de, baseline_pred_de))
+        # print('Baseline F1 score:', f1_score(svm_y_test_de, baseline_pred_de, average='weighted'))
+        # print()
+        #
+        # # Switzerland:
+        # print("Baseline model for Switzerland:")
+        # baseline_pred_ch = baseline_clf.predict(svm_X_test_ch)
+        # # print(baseline_pred_ch)
+        # print("Baseline Accuracy:", accuracy_score(svm_y_test_ch, baseline_pred_ch))
+        # print('Baseline F1 score:', f1_score(svm_y_test_ch, baseline_pred_ch, average='weighted'))
+        # print()
+        # print()
 
         # load the datasets
-        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=64)
-        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=64)
-        test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False, batch_size=64)
-        test_loader_it = DataLoader(bert_data_test_it, shuffle=False, batch_size=64)
-        test_loader_de = DataLoader(bert_data_test_de, shuffle=False, batch_size=64)
-        test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False, batch_size=64)
+        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=130)
+        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=130)
+        test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False, batch_size=130)
+        test_loader_it = DataLoader(bert_data_test_it, shuffle=False, batch_size=130)
+        test_loader_de = DataLoader(bert_data_test_de, shuffle=False, batch_size=130)
+        test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False, batch_size=130)
         test_loader = [test_loader_fr, test_loader_it, test_loader_de, test_loader_ch]
-
-        # Load model weights from a file
-        if args.reload_model:
-            model.load_state_dict(torch.load(args.reload_model))
-
-        evaluate(model, dev_loader)
-        train(model, train_loader, dev_loader, test_loader, args.epochs)
-
-        # Write output to file
-        if args.output_file:
-            print("Writing output to file...")
-            write_to_file(model, dev_loader, args.output_file)
-
-        if args.save_model:
-            torch.save(model.state_dict(), args.save_model)
     else:
-        train, dev, test = dividing_dataset(DATA_FRAME, undersampling=undersampling)
-
+        training, dev, test = dividing_dataset(DATA_FRAME, undersampling=undersampling)
         print()
 
         # use the train, dev and test datasets for different dataformats for the different experiments
-        svm_X_train, svm_y_train = baseline_data(train, tokenizer)
+        svm_X_train, svm_y_train = baseline_data(training, tokenizer)
         svm_X_test, svm_y_test = baseline_data(test, tokenizer)
 
-        bert_data_train = SentenceDataset(train, tokenizer)
+        bert_data_train = SentenceDataset(training, tokenizer)
         bert_data_dev = SentenceDataset(dev, tokenizer)
         bert_data_test = SentenceDataset(test, tokenizer)
 
@@ -313,29 +300,24 @@ if __name__ == "__main__":
         #print('Dummy F1 score:', f1_score(svm_y_train, dummy_pred, average='weighted'))
 
         # Baseline model: SVM
-        baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
-        baseline_clf.fit(svm_X_train, svm_y_train)
-        baseline_pred = baseline_clf.predict(svm_X_test)
-        # print(baseline_pred)
-        print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
-        print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
+        # baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
+        # baseline_clf.fit(svm_X_train, svm_y_train)
+        # baseline_pred = baseline_clf.predict(svm_X_test)
+        # # print(baseline_pred)
+        # print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
+        # print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
 
         # load the datasets
-        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=64)
-        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=64)
-        test_loader = DataLoader(bert_data_test, shuffle=False, batch_size=64)
+        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=130)
+        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=130)
+        test_loader = DataLoader(bert_data_test, shuffle=False, batch_size=130)
 
-        # Load model weights from a file
-        if args.reload_model:
-            model.load_state_dict(torch.load(args.reload_model))
+    # Load model weights from a file
+    if args.reload_model:
+        model.load_state_dict(torch.load(args.reload_model))
 
-        evaluate(model, dev_loader)
-        train(model, train_loader, dev_loader, test_loader, args.epochs)
+    # evaluate(model, dev_loader)
+    train(model, train_loader, dev_loader, test_loader, args.epochs)
 
-        # Write output to file
-        if args.output_file:
-            print("Writing output to file...")
-            write_to_file(model, dev_loader, args.output_file)
-
-        if args.save_model:
-            torch.save(model.state_dict(), args.save_model)
+    if args.save_model:
+        torch.save(model.state_dict(), args.save_model)
