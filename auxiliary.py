@@ -3,7 +3,7 @@ __author__ = "Jantina Schakel, Marieke Weultjes, Leon Wetzel," \
 __copyright__ = "Copyright 2021, Jantina Schakel, Marieke Weultjes," \
                 " Leon Wetzel, and Dion Theodoridis"
 __credits__ = ["Jantina Schakel", "Marieke Weultjes", "Leon Wetzel",
-                    "Dion Theodoridis"]
+               "Dion Theodoridis"]
 __license__ = "MIT"
 __version__ = "1.0.1"
 __maintainer__ = "Leon Wetzel"
@@ -17,9 +17,10 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 
 DATA_PATH = "data/PSP_data.csv"
-
 IDX2LABEL = ['Non-offensive', 'Offensive']
 LABEL2IDX = {label: i for i, label in enumerate(IDX2LABEL)}
+OFFENSIVE = torch.tensor([0, 1], dtype=torch.int64)
+NOT_OFFENSIVE = torch.tensor([1, 0], dtype=torch.int64)
 
 
 def preprocessing_dataset(data_file):
@@ -142,33 +143,15 @@ class SentenceDataset(Dataset):
         # load tokenizer
         self.tokenizer = tokenizer
 
-        # get data and labels
-        data, labels = self._extract(data_frame)
+        messages = [i for i in data_frame["text"]]
+        labels = [i for i in data_frame['Category']]
 
-        self.data = np.array(data)
-        self.labels = np.array(labels)
-
-    def _extract(self, df):
-        # obtain right columns from the dataset
-        largest_sample = max([len(self.tokenizer.tokenize(i)) for i in df['text']])
-
-        if largest_sample > 512:
-            max_length = 512
-        else:
-            max_length = largest_sample
-
-        print(f"Encoding data...")
-        data = [
-            self.tokenizer.encode(i, padding='max_length', max_length=max_length,
-                                  truncation=True) for i in df['text']
-        ]
-
-        labels = [i for i in df['Category']]
-
-        # transform labels from dataset to right format
+        # transform data and labels from dataset to right format
+        data = [self.tokenizer.encode(message) for message in messages]
         one_hot_labels = convert_to_one_hot(labels, len(IDX2LABEL))
 
-        return data, one_hot_labels
+        self.data = np.array(data)
+        self.labels = np.array(one_hot_labels)
 
     def __len__(self):
         return len(self.data)
@@ -202,12 +185,13 @@ def convert_to_one_hot(Y, label_size):
 
 
 def baseline_data(dataframe, tokenizer):
+    # TODO: updaten ahv functionaliteit in constructor
     largest_sample = max([len(tokenizer.tokenize(i)) for i in dataframe['text']])
 
     max_length = 512
-    #if largest_sample > 512:
+    # if largest_sample > 512:
     #    max_length = 512
-    #else:
+    # else:
     #    max_length = largest_sample
 
     data = [
@@ -227,3 +211,24 @@ def baseline_data(dataframe, tokenizer):
     print(labels)
 
     return data, labels
+
+
+def padding_collate_fn(batch):
+    """
+    Pads data with zeros to size of longest sentence in batch.
+    """
+    data, labels = zip(*batch)
+    largest_sample = max([len(d) for d in data])
+    if largest_sample > 512:
+        largest_sample = 512
+    padded_data = torch.zeros((len(data), largest_sample), dtype=torch.long)
+    padded_labels = torch.zeros((len(labels), 2), dtype=torch.long)
+
+    for i, sample in enumerate(data):
+        sample_length = len(sample)
+        if sample_length > 512:
+            sample_length = 512
+            sample = sample[:512]
+        padded_data[i, :sample_length] = sample
+        padded_labels[i] = labels[i]
+    return padded_data, padded_labels

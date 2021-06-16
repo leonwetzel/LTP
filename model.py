@@ -3,7 +3,7 @@ __author__ = "Jantina Schakel, Marieke Weultjes, Leon Wetzel," \
 __copyright__ = "Copyright 2021, Jantina Schakel, Marieke Weultjes," \
                 " Leon Wetzel, and Dion Theodoridis"
 __credits__ = ["Jantina Schakel", "Marieke Weultjes", "Leon Wetzel",
-                    "Dion Theodoridis"]
+                "Dion Theodoridis"]
 __license__ = "MIT"
 __version__ = "1.0.1"
 __maintainer__ = "Leon Wetzel"
@@ -32,7 +32,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.svm import LinearSVC
 
-from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset, dividing_dataset
+from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset, \
+    dividing_dataset, padding_collate_fn, OFFENSIVE, NOT_OFFENSIVE
 
 parser = argparse.ArgumentParser(description="POS tagging")
 parser.add_argument("--reload_model", type=str, help="Path of model to reload")
@@ -146,8 +147,6 @@ def evaluate(model, loader):
     model.eval()
     with torch.no_grad():
         total = 0.0
-        offensive = torch.tensor([[0, 1]], dtype=torch.int64)
-        not_offensive = torch.tensor([[1, 0]], dtype=torch.int64)
         tp, fp, tn, fn = 0, 0, 0, 0
         for index, batch in enumerate(loader):
             data, labels = batch
@@ -158,28 +157,30 @@ def evaluate(model, loader):
                 label = labels[i]
                 result = torch.zeros(2, dtype=torch.int64)
                 result[pred] = 1
+                print("pred + result: ", result, label)
                 if torch.equal(result, label):
-                    if torch.equal(result, offensive) and torch.equal(label, offensive):
+                    if torch.equal(result, OFFENSIVE) and torch.equal(label, OFFENSIVE):
                         tp += 1
-                    elif torch.equal(result, not_offensive) and torch.equal(label, not_offensive):
+                    elif torch.equal(result, NOT_OFFENSIVE) and torch.equal(label, NOT_OFFENSIVE):
                         tn += 1
                 else:
-                    if torch.equal(result, offensive) and torch.equal(label, not_offensive):
+                    if torch.equal(result, OFFENSIVE) and torch.equal(label, NOT_OFFENSIVE):
                         fn += 1
-                    elif torch.equal(result, not_offensive) and torch.equal(label, offensive):
+                    elif torch.equal(result, NOT_OFFENSIVE) and torch.equal(label, OFFENSIVE):
                         fp += 1
                 total += 1
 
-            print(f"(evaluate) Processed batch {index}...")
-            break
+            print(f"(evaluate) Processed batch {index} (tp={tp}, tn={tn}, fn={fn}, fp={fp})...")
 
     accuracy = (tp + tn) / total
-    precision = tp / (tp + fp)
-    recall = tp / (tp + fn)
-    f1 = 2 * precision * recall / (precision + recall)
-
     print(f"Accuracy: {accuracy}")
+    precision = tp / (tp + fp)
+    print(f"Precision: {precision}")
+    recall = tp / (tp + fn)
+    print(f"Recall: {recall}")
+    f1 = 2 * precision * recall / (precision + recall)
     print(f"F1 score: {f1}")
+
     model.train()
     return accuracy, f1
 
@@ -210,13 +211,12 @@ if __name__ == "__main__":
 
     # Check whether test sets should be separated per country
     separated = False if args.sep_test_sets == 0 else True
-    undersampling = args.undersampling
     # Split the data in train (70%), dev (20%) and test (10%) taking into account
     # that the data from different countries is evenly divided over the three sets
     if separated:
         training, dev, fr_test, it_test, de_test, ch_test = dividing_dataset(DATA_FRAME,
                                                                           sep_test_sets=separated,
-                                                                          undersampling=undersampling)
+                                                                          undersampling=args.undersampling)
 
         # use the train, dev and test datasets for different dataformats for the different experiments
         # svm_X_train, svm_y_train = baseline_data(train, tokenizer)
@@ -271,15 +271,21 @@ if __name__ == "__main__":
         # print()
 
         # load the datasets
-        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=130)
-        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=130)
-        test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False, batch_size=130)
-        test_loader_it = DataLoader(bert_data_test_it, shuffle=False, batch_size=130)
-        test_loader_de = DataLoader(bert_data_test_de, shuffle=False, batch_size=130)
-        test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False, batch_size=130)
+        train_loader = DataLoader(bert_data_train, shuffle=False,
+                                  batch_size=128, collate_fn=padding_collate_fn)
+        dev_loader = DataLoader(bert_data_dev, shuffle=False,
+                                batch_size=128, collate_fn=padding_collate_fn)
+        test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False,
+                                    batch_size=128, collate_fn=padding_collate_fn)
+        test_loader_it = DataLoader(bert_data_test_it, shuffle=False,
+                                    batch_size=128, collate_fn=padding_collate_fn)
+        test_loader_de = DataLoader(bert_data_test_de, shuffle=False,
+                                    batch_size=128, collate_fn=padding_collate_fn)
+        test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False,
+                                    batch_size=128, collate_fn=padding_collate_fn)
         test_loader = [test_loader_fr, test_loader_it, test_loader_de, test_loader_ch]
     else:
-        training, dev, test = dividing_dataset(DATA_FRAME, undersampling=undersampling)
+        training, dev, test = dividing_dataset(DATA_FRAME, undersampling=args.undersampling)
         print()
 
         # use the train, dev and test datasets for different dataformats for the different experiments
@@ -308,9 +314,12 @@ if __name__ == "__main__":
         # print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
 
         # load the datasets
-        train_loader = DataLoader(bert_data_train, shuffle=False, batch_size=130)
-        dev_loader = DataLoader(bert_data_dev, shuffle=False, batch_size=130)
-        test_loader = DataLoader(bert_data_test, shuffle=False, batch_size=130)
+        train_loader = DataLoader(bert_data_train, shuffle=False,
+                                  batch_size=128, collate_fn=padding_collate_fn)
+        dev_loader = DataLoader(bert_data_dev, shuffle=False,
+                                batch_size=128, collate_fn=padding_collate_fn)
+        test_loader = DataLoader(bert_data_test, shuffle=False,
+                                 batch_size=128, collate_fn=padding_collate_fn)
 
     # Load model weights from a file
     if args.reload_model:
