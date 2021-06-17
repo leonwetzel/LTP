@@ -65,7 +65,8 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
 
     """
     # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
     print("Commencing training...")
 
     for epoch in range(epochs):
@@ -82,10 +83,10 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
             # ii. do forward pass
             y_pred = model(input_ids=data)
             # iii. get loss
-            loss = F.binary_cross_entropy_with_logits(y_pred.logits, labels.float(),
-                                                      reduction='mean')
+            loss = F.binary_cross_entropy_with_logits(y_pred.logits, labels.float(), reduction='mean')
+            print(f"Loss: {loss}")
             # add loss to total_loss
-            total_loss += loss.item()
+            total_loss += loss
             # iv. do backward pass
             loss.backward()
             # v. take an optimization step
@@ -94,7 +95,7 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
             if index % 5 == 0 and index > 0:
                 avg_loss = total_loss / 5.0
                 sentences_per_sec = total_sentences / (time.time() - start_time)
-                print("[Epoch %d, Iter %d] loss: %.4f, sentences/sec: %d" % \
+                print("[Epoch %d, Iter %d] avg loss: %.4f, sentences/sec: %d" % \
                     (epoch, index, avg_loss, sentences_per_sec))
                 start_time = time.time()
                 total_loss = 0.0
@@ -199,10 +200,13 @@ if __name__ == "__main__":
     # - uncased variant: https://huggingface.co/bert-base-multilingual-uncased
     pretrained = 'bert-base-multilingual-cased'
     tokenizer = BertTokenizer.from_pretrained(pretrained)
-    tokenizer.do_basic_tokenize = False  # TODO: change if needed
+    tokenizer.do_basic_tokenize = True  # TODO: change if needed
 
     model = BertForSequenceClassification.from_pretrained(pretrained)
     model.num_labels = len(IDX2LABEL)
+    model.num_hidden_layers = 12
+    model.hidden_act = "relu"
+    model.use_cache = False
 
     # clean up the dataset
     DATA_FRAME = preprocessing_dataset(DATA_PATH)
@@ -274,17 +278,17 @@ if __name__ == "__main__":
 
         # load the datasets
         train_loader = DataLoader(bert_data_train, shuffle=False,
-                                  batch_size=64, collate_fn=padding_collate_fn)
+                                  batch_size=32, collate_fn=padding_collate_fn)
         dev_loader = DataLoader(bert_data_dev, shuffle=False,
-                                batch_size=64, collate_fn=padding_collate_fn)
+                                batch_size=32, collate_fn=padding_collate_fn)
         test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False,
-                                    batch_size=64, collate_fn=padding_collate_fn)
+                                    batch_size=32, collate_fn=padding_collate_fn)
         test_loader_it = DataLoader(bert_data_test_it, shuffle=False,
-                                    batch_size=64, collate_fn=padding_collate_fn)
+                                    batch_size=32, collate_fn=padding_collate_fn)
         test_loader_de = DataLoader(bert_data_test_de, shuffle=False,
-                                    batch_size=64, collate_fn=padding_collate_fn)
+                                    batch_size=32, collate_fn=padding_collate_fn)
         test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False,
-                                    batch_size=64, collate_fn=padding_collate_fn)
+                                    batch_size=32, collate_fn=padding_collate_fn)
         test_loader = [test_loader_fr, test_loader_it, test_loader_de, test_loader_ch]
     else:
         training, dev, test = dividing_dataset(DATA_FRAME, undersampling=args.undersampling)
@@ -317,11 +321,11 @@ if __name__ == "__main__":
 
         # load the datasets
         train_loader = DataLoader(bert_data_train, shuffle=False,
-                                  batch_size=64, collate_fn=padding_collate_fn)
+                                  batch_size=32, collate_fn=padding_collate_fn)
         dev_loader = DataLoader(bert_data_dev, shuffle=False,
-                                batch_size=64, collate_fn=padding_collate_fn)
+                                batch_size=32, collate_fn=padding_collate_fn)
         test_loader = DataLoader(bert_data_test, shuffle=False,
-                                 batch_size=64, collate_fn=padding_collate_fn)
+                                 batch_size=32, collate_fn=padding_collate_fn)
 
     # Load model weights from a file
     if args.reload_model:

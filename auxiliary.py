@@ -218,17 +218,21 @@ def padding_collate_fn(batch):
     Pads data with zeros to size of longest sentence in batch.
     """
     data, labels = zip(*batch)
-    largest_sample = max([len(d) for d in data])
-    if largest_sample > 512:
+    maximum = max([len(d) for d in data])
+    if maximum > 512:
         largest_sample = 512
+    else:
+        largest_sample = maximum
     padded_data = torch.zeros((len(data), largest_sample), dtype=torch.long)
     padded_labels = torch.zeros((len(labels), 2), dtype=torch.long)
-
+    counts = 0
     for i, sample in enumerate(data):
         sample_length = len(sample)
         if sample_length > 512:
             sample_length = 512
             sample = sample[:512]
+            counts += 1
         padded_data[i, :sample_length] = sample
         padded_labels[i] = labels[i]
+    print(f"{counts} case(s) of exceeding 512 limit (actual max size: {maximum})")
     return padded_data, padded_labels
