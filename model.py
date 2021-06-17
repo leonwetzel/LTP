@@ -37,7 +37,7 @@ from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseli
 
 parser = argparse.ArgumentParser(description="POS tagging")
 parser.add_argument("--reload_model", type=str, help="Path of model to reload")
-parser.add_argument("--save_model", type=str, help="Path for saving the model")
+parser.add_argument("--save_model", type=str, help="Path for saving the model", default='model.pt')
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--epochs", type=int, default=1)
 parser.add_argument("--num_hidden_layers", type=int, default=1)
@@ -47,7 +47,7 @@ parser.add_argument("--undersampling", type=int, help="Set the use of undersampl
 parser.add_argument("--sep_test_sets", type=int, default=1)
 
 
-def train(model, train_loader, valid_loader, test_loader, epochs=1):
+def train(model, train_loader, valid_loader, test_loader, epochs=3):
     """
     Train the model, given various data splits and an epoch count.
 
@@ -64,7 +64,8 @@ def train(model, train_loader, valid_loader, test_loader, epochs=1):
     None
 
     """
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
+    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-4)
     print("Commencing training...")
 
     for epoch in range(epochs):
@@ -81,7 +82,8 @@ def train(model, train_loader, valid_loader, test_loader, epochs=1):
             # ii. do forward pass
             y_pred = model(input_ids=data)
             # iii. get loss
-            loss = F.binary_cross_entropy_with_logits(y_pred.logits, labels.float())
+            loss = F.binary_cross_entropy_with_logits(y_pred.logits, labels.float(),
+                                                      reduction='mean')
             # add loss to total_loss
             total_loss += loss.item()
             # iv. do backward pass
@@ -272,17 +274,17 @@ if __name__ == "__main__":
 
         # load the datasets
         train_loader = DataLoader(bert_data_train, shuffle=False,
-                                  batch_size=128, collate_fn=padding_collate_fn)
+                                  batch_size=64, collate_fn=padding_collate_fn)
         dev_loader = DataLoader(bert_data_dev, shuffle=False,
-                                batch_size=128, collate_fn=padding_collate_fn)
+                                batch_size=64, collate_fn=padding_collate_fn)
         test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False,
-                                    batch_size=128, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader_it = DataLoader(bert_data_test_it, shuffle=False,
-                                    batch_size=128, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader_de = DataLoader(bert_data_test_de, shuffle=False,
-                                    batch_size=128, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False,
-                                    batch_size=128, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader = [test_loader_fr, test_loader_it, test_loader_de, test_loader_ch]
     else:
         training, dev, test = dividing_dataset(DATA_FRAME, undersampling=args.undersampling)
@@ -315,11 +317,11 @@ if __name__ == "__main__":
 
         # load the datasets
         train_loader = DataLoader(bert_data_train, shuffle=False,
-                                  batch_size=128, collate_fn=padding_collate_fn)
+                                  batch_size=64, collate_fn=padding_collate_fn)
         dev_loader = DataLoader(bert_data_dev, shuffle=False,
-                                batch_size=128, collate_fn=padding_collate_fn)
+                                batch_size=64, collate_fn=padding_collate_fn)
         test_loader = DataLoader(bert_data_test, shuffle=False,
-                                 batch_size=128, collate_fn=padding_collate_fn)
+                                 batch_size=64, collate_fn=padding_collate_fn)
 
     # Load model weights from a file
     if args.reload_model:
