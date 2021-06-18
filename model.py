@@ -24,7 +24,6 @@ import argparse
 
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 import numpy as np
@@ -43,7 +42,7 @@ parser.add_argument("--epochs", type=int, default=1)
 parser.add_argument("--num_hidden_layers", type=int, default=1)
 parser.add_argument("--num_attn_heads", type=int, default=1)
 parser.add_argument("--output_file", type=str, help="Path for writing to a file", default='output.txt')
-parser.add_argument("--undersampling", type=int, help="Set the use of undersampling the non-offensive class", default=1)
+parser.add_argument("--undersampling", type=int, help="Set the use of undersampling the non-offensive class", default=0)
 parser.add_argument("--sep_test_sets", type=int, default=1)
 
 
@@ -64,9 +63,8 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
     None
 
     """
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)  # TODO: change/upgrade if needed
-    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    criterion = torch.nn.BCEWithLogitsLoss(reduction='mean')
     print("Commencing training...")
 
     for epoch in range(epochs):
@@ -83,10 +81,10 @@ def train(model, train_loader, valid_loader, test_loader, epochs=3):
             # ii. do forward pass
             y_pred = model(input_ids=data)
             # iii. get loss
-            loss = F.binary_cross_entropy_with_logits(y_pred.logits, labels.float(), reduction='mean')
+            loss = criterion(y_pred.logits, labels.float())
             print(f"Loss: {loss}")
             # add loss to total_loss
-            total_loss += loss
+            total_loss += loss.item()
             # iv. do backward pass
             loss.backward()
             # v. take an optimization step
@@ -159,18 +157,19 @@ def evaluate(model, loader):
             for i, pred in enumerate(predictions):
                 label = labels[i]
                 result = torch.zeros(2, dtype=torch.int64)
+                print("pred: ", pred)
+                print()
                 result[pred] = 1
-                print("pred + result: ", result, label)
-                if torch.equal(result, label):
-                    if torch.equal(result, OFFENSIVE) and torch.equal(label, OFFENSIVE):
-                        tp += 1
-                    elif torch.equal(result, NOT_OFFENSIVE) and torch.equal(label, NOT_OFFENSIVE):
-                        tn += 1
-                else:
-                    if torch.equal(result, OFFENSIVE) and torch.equal(label, NOT_OFFENSIVE):
-                        fn += 1
-                    elif torch.equal(result, NOT_OFFENSIVE) and torch.equal(label, OFFENSIVE):
-                        fp += 1
+                print("result + label: ", result, label)
+                print()
+                if torch.equal(result, OFFENSIVE) and torch.equal(label, OFFENSIVE):
+                    tp += 1
+                elif torch.equal(result, NOT_OFFENSIVE) and torch.equal(label, NOT_OFFENSIVE):
+                    tn += 1
+                elif torch.equal(result, OFFENSIVE) and torch.equal(label, NOT_OFFENSIVE):
+                    fn += 1
+                elif torch.equal(result, NOT_OFFENSIVE) and torch.equal(label, OFFENSIVE):
+                    fp += 1
                 total += 1
 
             print(f"(evaluate) Processed batch {index} (tp={tp}, tn={tn}, fn={fn}, fp={fp})...")
@@ -278,17 +277,17 @@ if __name__ == "__main__":
 
         # load the datasets
         train_loader = DataLoader(bert_data_train, shuffle=False,
-                                  batch_size=32, collate_fn=padding_collate_fn)
+                                  batch_size=64, collate_fn=padding_collate_fn)
         dev_loader = DataLoader(bert_data_dev, shuffle=False,
-                                batch_size=32, collate_fn=padding_collate_fn)
+                                batch_size=64, collate_fn=padding_collate_fn)
         test_loader_fr = DataLoader(bert_data_test_fr, shuffle=False,
-                                    batch_size=32, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader_it = DataLoader(bert_data_test_it, shuffle=False,
-                                    batch_size=32, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader_de = DataLoader(bert_data_test_de, shuffle=False,
-                                    batch_size=32, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader_ch = DataLoader(bert_data_test_ch, shuffle=False,
-                                    batch_size=32, collate_fn=padding_collate_fn)
+                                    batch_size=64, collate_fn=padding_collate_fn)
         test_loader = [test_loader_fr, test_loader_it, test_loader_de, test_loader_ch]
     else:
         training, dev, test = dividing_dataset(DATA_FRAME, undersampling=args.undersampling)
@@ -321,11 +320,11 @@ if __name__ == "__main__":
 
         # load the datasets
         train_loader = DataLoader(bert_data_train, shuffle=False,
-                                  batch_size=32, collate_fn=padding_collate_fn)
+                                  batch_size=64, collate_fn=padding_collate_fn)
         dev_loader = DataLoader(bert_data_dev, shuffle=False,
-                                batch_size=32, collate_fn=padding_collate_fn)
+                                batch_size=64, collate_fn=padding_collate_fn)
         test_loader = DataLoader(bert_data_test, shuffle=False,
-                                 batch_size=32, collate_fn=padding_collate_fn)
+                                 batch_size=64, collate_fn=padding_collate_fn)
 
     # Load model weights from a file
     if args.reload_model:
