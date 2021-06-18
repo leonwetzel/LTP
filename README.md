@@ -1,13 +1,6 @@
 # LTP
 Code for the course Language Technology Project, taught at the Faculty of Arts at the University of Groningen.
 
-# TO DO:
+For this research we used the Political Speech Project database (https://rania.shinyapps.io/PoliticalSpeechProject/), which we are not allowed to share.
 
-Main model trainen met nieuwe distributie
-Dit model evaluaten op all, Germany, France, Italy en Switzerland
-
-None category undersamplen
-Undersampled model trainen
-Dit model evaluaten op all, Germany, France, Italy en Switzerland
-
-Baselines nieuwe distributie, undersampled
+The code in this repository is based on assignment 4 from the course Language Technology Project. We also used the libraries huggingface, PyTorch and sci-kit learn.

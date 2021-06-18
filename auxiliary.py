@@ -88,6 +88,7 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     ch_train, ch_rest = train_test_split(ch_df, test_size=0.3, random_state=42)  # lists []
     ch_dev, ch_test = train_test_split(ch_rest, test_size=0.33, random_state=42)
 
+    """
     print("France:")
     print(fr_train['Category'].value_counts())
     print(fr_dev['Category'].value_counts())
@@ -107,6 +108,7 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     print(ch_train['Category'].value_counts())
     print(ch_dev['Category'].value_counts())
     print(ch_test['Category'].value_counts())
+    """
 
     # Concatenate train sets:
     train = fr_train.append(it_train).append(de_train).append(ch_train)
@@ -120,6 +122,7 @@ def dividing_dataset(dataframe, sep_test_sets=False, undersampling=0):
     else:
         # Concatenate test sets:
         test = fr_test.append(it_test).append(de_test).append(ch_test)
+
         return train, dev, test
 
 
@@ -186,8 +189,8 @@ def convert_to_one_hot(Y, label_size):
 
 def baseline_data(dataframe, tokenizer):
     # TODO: updaten ahv functionaliteit in constructor
+    """
     largest_sample = max([len(tokenizer.tokenize(i)) for i in dataframe['text']])
-
     max_length = 512
     # if largest_sample > 512:
     #    max_length = 512
@@ -208,7 +211,18 @@ def baseline_data(dataframe, tokenizer):
 
     data = np.array(data)
     labels = np.array(labels)
-    print(labels)
+    """
+    messages = [i for i in dataframe["text"]]
+
+    data = [tokenizer.encode(message, padding='max_length', max_length=512, truncation=True) for message in messages]
+
+    labels = []
+    for i in dataframe['Category']:
+        if i == "Non-offensive":
+            labels.append(0)
+        else:
+            labels.append(1)
+
 
     return data, labels
 
