@@ -30,7 +30,9 @@ from torch.utils.data import DataLoader
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC, LinearSVC
+from sklearn.dummy import DummyClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from auxiliary import SentenceDataset, DATA_PATH, IDX2LABEL, tensor_desc, baseline_data, preprocessing_dataset, \
     dividing_dataset, padding_collate_fn, OFFENSIVE, NOT_OFFENSIVE
@@ -224,13 +226,14 @@ if __name__ == "__main__":
                                                                           sep_test_sets=separated,
                                                                           undersampling=args.undersampling)
 
-        # use the train, dev and test datasets for different dataformats for the different experiments
-        # svm_X_train, svm_y_train = baseline_data(train, tokenizer)
-        # svm_X_test_fr, svm_y_test_fr = baseline_data(fr_test, tokenizer)
-        # svm_X_test_it, svm_y_test_it = baseline_data(it_test, tokenizer)
-        # svm_X_test_de, svm_y_test_de = baseline_data(de_test, tokenizer)
-        # svm_X_test_ch, svm_y_test_ch = baseline_data(ch_test, tokenizer)
+        # Get the train and test data prepared for the baselines
+        X_train, y_train = baseline_data(training, tokenizer)
+        X_test_fr, y_test_fr = baseline_data(fr_test, tokenizer)
+        X_test_it, y_test_it = baseline_data(it_test, tokenizer)
+        X_test_de, y_test_de = baseline_data(de_test, tokenizer)
+        X_test_ch, y_test_ch = baseline_data(ch_test, tokenizer)
 
+        # Get the data prepared for the BERT model
         bert_data_train = SentenceDataset(training, tokenizer)
         bert_data_dev = SentenceDataset(dev, tokenizer)
         bert_data_test_fr = SentenceDataset(fr_test, tokenizer)
@@ -238,42 +241,62 @@ if __name__ == "__main__":
         bert_data_test_de = SentenceDataset(de_test, tokenizer)
         bert_data_test_ch = SentenceDataset(ch_test, tokenizer)
 
+        # Baseline model: most frequent with f1-score
+        dummy_clf = DummyClassifier(strategy="most_frequent")
+        dummy_clf.fit(X_train, y_train)
+        dummy_pred_fr = dummy_clf.predict(X_test_fr)
+        dummy_pred_it = dummy_clf.predict(X_test_it)
+        dummy_pred_de = dummy_clf.predict(X_test_de)
+        dummy_pred_ch = dummy_clf.predict(X_test_ch)
+
+        print("Dummy Accuracy Score (fr): ", round(dummy_clf.score(X_test_fr, y_test_fr), 3))
+        print('Dummy F1 score (fr):', round(f1_score(y_test_fr, dummy_pred_fr, average='weighted'), 3))
+
+        print("Dummy Accuracy Score (it): ", round(dummy_clf.score(X_test_it, y_test_it), 3))
+        print('Dummy F1 score (it):', round(f1_score(y_test_it, dummy_pred_it, average='weighted'), 3))
+
+        print("Dummy Accuracy Score (de): ", round(dummy_clf.score(X_test_de, y_test_de), 3))
+        print('Dummy F1 score (de):', round(f1_score(y_test_de, dummy_pred_de, average='weighted'), 3))
+
+        print("Dummy Accuracy Score (ch): ", round(dummy_clf.score(X_test_ch, y_test_ch), 3))
+        print('Dummy F1 score (ch):', round(f1_score(y_test_ch, dummy_pred_ch, average='weighted'), 3))
+
+
         # Baseline model: SVM
-        # baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
-        # print(svm_y_train)
-        # baseline_clf.fit(svm_X_train, svm_y_train)
-        #
+        baseline_clf = LinearSVC(max_iter=1000)
+        X_train = np.array(X_train)
+
+        baseline_clf.fit(X_train, y_train)
         # # France:
-        # print("Baseline model for France:")
-        # baseline_pred_fr = baseline_clf.predict(svm_X_test_fr)
-        # # print(baseline_pred_fr)
-        # print("Baseline Accuracy:", accuracy_score(svm_y_test_fr, baseline_pred_fr))
-        # print('Baseline F1 score:', f1_score(svm_y_test_fr, baseline_pred_fr, average='weighted'))
-        # print()
+        print("Baseline model for France:")
+        baseline_pred_fr = baseline_clf.predict(X_test_fr)
+        print("Baseline Accuracy:", round(accuracy_score(y_test_fr, baseline_pred_fr),3))
+        print('Baseline F1 score:', round(f1_score(y_test_fr, baseline_pred_fr, average='weighted'),3))
+        print()
         #
         # # Italy:
-        # print("Baseline model for Italy:")
-        # baseline_pred_it = baseline_clf.predict(svm_X_test_it)
+        print("Baseline model for Italy:")
+        baseline_pred_it = baseline_clf.predict(X_test_it)
         # # print(baseline_pred_it)
-        # print("Baseline Accuracy:", accuracy_score(svm_y_test_it, baseline_pred_it))
-        # print('Baseline F1 score:', f1_score(svm_y_test_it, baseline_pred_it, average='weighted'))
-        # print()
+        print("Baseline Accuracy:", round(accuracy_score(y_test_it, baseline_pred_it),3))
+        print('Baseline F1 score:', round(f1_score(y_test_it, baseline_pred_it, average='weighted'),3))
+        print()
         #
         # # Germany:
-        # print("Baseline model for Germany:")
-        # baseline_pred_de = baseline_clf.predict(svm_X_test_de)
+        print("Baseline model for Germany:")
+        baseline_pred_de = baseline_clf.predict(X_test_de)
         # # print(baseline_pred_de)
-        # print("Baseline Accuracy:", accuracy_score(svm_y_test_de, baseline_pred_de))
-        # print('Baseline F1 score:', f1_score(svm_y_test_de, baseline_pred_de, average='weighted'))
-        # print()
+        print("Baseline Accuracy:", round(accuracy_score(y_test_de, baseline_pred_de),3))
+        print('Baseline F1 score:', round(f1_score(y_test_de, baseline_pred_de, average='weighted'),3))
+        print()
         #
         # # Switzerland:
-        # print("Baseline model for Switzerland:")
-        # baseline_pred_ch = baseline_clf.predict(svm_X_test_ch)
+        print("Baseline model for Switzerland:")
+        baseline_pred_ch = baseline_clf.predict(X_test_ch)
         # # print(baseline_pred_ch)
-        # print("Baseline Accuracy:", accuracy_score(svm_y_test_ch, baseline_pred_ch))
-        # print('Baseline F1 score:', f1_score(svm_y_test_ch, baseline_pred_ch, average='weighted'))
-        # print()
+        print("Baseline Accuracy:", round(accuracy_score(y_test_ch, baseline_pred_ch),3))
+        print('Baseline F1 score:', round(f1_score(y_test_ch, baseline_pred_ch, average='weighted'),3))
+        print()
         # print()
 
         # load the datasets
@@ -295,29 +318,28 @@ if __name__ == "__main__":
         print()
 
         # use the train, dev and test datasets for different dataformats for the different experiments
-        svm_X_train, svm_y_train = baseline_data(training, tokenizer)
-        svm_X_test, svm_y_test = baseline_data(test, tokenizer)
+        X_train, y_train = baseline_data(training, tokenizer)
+        X_test, y_test = baseline_data(test, tokenizer)
 
         bert_data_train = SentenceDataset(training, tokenizer)
         bert_data_dev = SentenceDataset(dev, tokenizer)
         bert_data_test = SentenceDataset(test, tokenizer)
 
         # Baseline model: most frequent with f1-score
-        #dummy_clf = DummyClassifier(strategy="most_frequent")
-        #dummy_clf.fit(svm_X_train, svm_y_train)
-        #print(len(svm_X_test))
-        #print(len(svm_y_test))
-        #dummy_pred = dummy_clf.predict(svm_X_train)
-        #print("Dummy Accuracy Score: ", dummy_clf.score(svm_X_train, svm_y_test))
-        #print('Dummy F1 score:', f1_score(svm_y_train, dummy_pred, average='weighted'))
+        dummy_clf = DummyClassifier(strategy="most_frequent")
+        dummy_clf.fit(X_train, y_train)
+
+        dummy_pred = dummy_clf.predict(X_test)
+        print("Dummy Accuracy Score: ", round(dummy_clf.score(X_test, y_test),3))
+        print('Dummy F1 score:', round(f1_score(y_test, dummy_pred, average='weighted'),3))
 
         # Baseline model: SVM
-        # baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
-        # baseline_clf.fit(svm_X_train, svm_y_train)
-        # baseline_pred = baseline_clf.predict(svm_X_test)
-        # # print(baseline_pred)
-        # print("Baseline Accuracy:", accuracy_score(svm_y_test, baseline_pred))
-        # print('Baseline F1 score:', f1_score(svm_y_test, baseline_pred, average='weighted'))
+        baseline_clf = LinearSVC()  #C=1, class_weight={1: 10}?
+        baseline_clf.fit(X_train, y_train)
+        baseline_pred = baseline_clf.predict(X_test)
+        # print(baseline_pred)
+        print("Baseline Accuracy:", round(accuracy_score(y_test, baseline_pred),3))
+        print('Baseline F1 score:', round(f1_score(y_test, baseline_pred, average='weighted'),3))
 
         # load the datasets
         train_loader = DataLoader(bert_data_train, shuffle=False,
